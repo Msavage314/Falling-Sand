@@ -21,6 +21,7 @@ pub enum MaterialID {
     Sand,
     Stone,
     Water,
+    Slime,
 }
 
 impl MaterialID {
@@ -28,7 +29,7 @@ impl MaterialID {
         return &MATERIAL_TABLE[self as usize];
     }
 }
-static MATERIAL_TABLE: [MaterialProperties; 4] = [
+static MATERIAL_TABLE: [MaterialProperties; 5] = [
     /* Empty */
     MaterialProperties {
         behavior: Behavior::empty(),
@@ -56,6 +57,13 @@ static MATERIAL_TABLE: [MaterialProperties; 4] = [
         density: 1.0,
         color: Color::new(0.1, 0.45, 0.82, 1.0),
         flow_distance: 5,
+    },
+    /* Slime */
+    MaterialProperties {
+        behavior: Behavior::LIQUID,
+        density: 1.3,
+        color: Color::new(0.8, 0.3, 0.8, 1.0),
+        flow_distance: 3,
     },
 ];
 
@@ -280,6 +288,8 @@ async fn main() {
             active = MaterialID::Stone
         } else if is_key_pressed(KeyCode::Key3) {
             active = MaterialID::Water
+        } else if is_key_pressed(KeyCode::Key4) {
+            active = MaterialID::Slime
         }
 
         if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
