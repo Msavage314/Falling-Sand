@@ -288,6 +288,13 @@ impl Grid {
         {
             return false;
         }
+        if cell_a != MaterialID::Empty && cell_b != MaterialID::Empty {
+            if !(cell_a.properties().behavior.contains(Behavior::FLOWS))
+                && !(cell_b.properties().behavior.contains(Behavior::FLOWS))
+            {
+                return false;
+            }
+        }
 
         let diff = cell_a.properties().density - cell_b.properties().density;
 
@@ -452,7 +459,7 @@ impl Grid {
                     self.update_cell(x as i32, y as i32);
                 }
             } else {
-                for x in (0..self.width) {
+                for x in 0..self.width {
                     self.update_cell(x as i32, y as i32);
                 }
             }
