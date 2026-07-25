@@ -1,9 +1,13 @@
 use bitflags::bitflags;
+use egui_macroquad::egui;
 use macroquad::color::Color;
 use macroquad::prelude::*;
+use std::collections::HashMap;
 use std::sync::LazyLock;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 bitflags! {
-    #[derive(Debug,Clone,Copy,PartialEq)]
+    #[derive(Debug,Clone,Copy,PartialEq )]
     pub struct Behavior: u16 {
         const FALLS = 1<<0; // Obeys gravity generally. Will fall down
         const FLOWS = 1 << 1; // flows sideways when blocked
@@ -20,7 +24,7 @@ bitflags! {
 }
 
 /// Stores a material ID that represents a specific material
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, EnumIter, Eq, Hash)]
 pub enum MaterialID {
     Empty,
     Sand,
@@ -55,6 +59,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 0.0,
             color: Color::new(0.0, 0.0, 0.0, 1.0),
             flow_distance: 0,
+            lava_resistance: 0.0,
         },
         /* Sand  */
         MaterialProperties {
@@ -62,6 +67,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 1.5,
             color: Color::new(0.96, 0.82, 0.45, 1.0),
             flow_distance: 0,
+            lava_resistance: 0.8,
         },
         /* Stone */
         MaterialProperties {
@@ -69,6 +75,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 3.0,
             color: Color::new(0.5, 0.5, 0.5, 1.0),
             flow_distance: 0,
+            lava_resistance: 0.05,
         },
         /* Water */
         MaterialProperties {
@@ -76,6 +83,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 1.0,
             color: Color::new(0.1, 0.45, 0.82, 1.0),
             flow_distance: 5,
+            lava_resistance: 1.0,
         },
         /* Slime */
         MaterialProperties {
@@ -83,6 +91,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 1.3,
             color: Color::new(0.8, 0.3, 0.8, 1.0),
             flow_distance: 3,
+            lava_resistance: 1.0,
         },
         /* Salt */
         MaterialProperties {
@@ -90,6 +99,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 1.5,
             color: Color::new(0.9, 0.9, 1.0, 1.0),
             flow_distance: 3,
+            lava_resistance: 0.1,
         },
         /* Salt Water */
         MaterialProperties {
@@ -97,6 +107,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 1.1,
             color: Color::new(0.43, 0.77, 0.8, 1.0),
             flow_distance: 3,
+            lava_resistance: 1.0,
         },
         /* Lava */
         MaterialProperties {
@@ -104,6 +115,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 1.1,
             color: Color::new(0.95, 0.7, 0.0, 1.0),
             flow_distance: 1,
+            lava_resistance: 1.0,
         },
         /* Steam */
         MaterialProperties {
@@ -111,6 +123,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 0.1,
             color: Color::new(0.9, 0.9, 0.9, 1.0),
             flow_distance: 10,
+            lava_resistance: 1.0,
         },
         /* Dirt */
         MaterialProperties {
@@ -118,6 +131,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 1.7,
             color: Color::new(0.35, 0.23, 0.16, 1.0),
             flow_distance: 10,
+            lava_resistance: 0.4,
         },
         /* Snow */
         MaterialProperties {
@@ -125,6 +139,7 @@ static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
             density: 1.7,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
             flow_distance: 10,
+            lava_resistance: 1.0,
         },
     ]
 });
@@ -136,6 +151,7 @@ pub struct MaterialProperties {
     pub color: Color,
 
     pub flow_distance: u8,
+    pub lava_resistance: f32,
 }
 
 /// A reactant can be either a material E.g. Water and Salt or a behavior e.g. Acid and anything with behavior Corrodable
@@ -143,16 +159,6 @@ pub struct MaterialProperties {
 pub enum Reactant {
     Material(MaterialID),
     Behavior(Behavior),
-}
-
-pub struct Reaction {
-    pub a: Reactant,
-    pub b: Reactant,
-
-    pub output_a: MaterialID,
-    pub output_b: MaterialID,
-
-    pub chance: f32,
 }
 impl Reactant {
     fn matches(self, mat: MaterialID) -> bool {
@@ -162,31 +168,65 @@ impl Reactant {
         }
     }
 }
+
+#[derive(Clone, Copy)]
+pub struct ReactionOutcome {
+    pub chance_fn: fn(self_mat: MaterialID, other_mat: MaterialID) -> f32,
+    pub result: MaterialID,
+}
+
+pub struct Reaction {
+    pub a: Reactant,
+    pub b: Reactant,
+
+    pub output_a: Option<ReactionOutcome>,
+    pub output_b: Option<ReactionOutcome>,
+
+    pub chance: f32,
+}
+
 static REACTIONS: &[Reaction] = &[
     Reaction {
         a: Reactant::Material(MaterialID::Salt),
         b: Reactant::Material(MaterialID::Water),
 
-        output_a: MaterialID::SaltWater,
-        output_b: MaterialID::Water,
-
+        output_a: Some(ReactionOutcome {
+            chance_fn: |a, b| 1.0,
+            result: (MaterialID::SaltWater),
+        }),
+        output_b: Some(ReactionOutcome {
+            chance_fn: |a, b| 0.5,
+            result: (MaterialID::Water),
+        }),
         chance: 0.1,
     },
     Reaction {
         a: Reactant::Material(MaterialID::Lava),
         b: Reactant::Material(MaterialID::Water),
 
-        output_a: MaterialID::Stone,
-        output_b: MaterialID::Steam,
+        output_a: Some(ReactionOutcome {
+            chance_fn: |a, b| 0.5,
+            result: (MaterialID::Stone),
+        }),
+        output_b: Some(ReactionOutcome {
+            chance_fn: |a, b| 1.0,
+            result: (MaterialID::Steam),
+        }),
 
         chance: 0.5,
     },
     Reaction {
         a: Reactant::Material(MaterialID::Steam),
-        b: Reactant::Material(MaterialID::Empty),
+        b: Reactant::Material(MaterialID::Steam),
 
-        output_a: MaterialID::Empty,
-        output_b: MaterialID::Water,
+        output_a: Some(ReactionOutcome {
+            chance_fn: |a, b| 0.1,
+            result: (MaterialID::Water),
+        }),
+        output_b: Some(ReactionOutcome {
+            chance_fn: |a, b| 1.0,
+            result: (MaterialID::Empty),
+        }),
 
         chance: 0.01,
     },
@@ -194,10 +234,15 @@ static REACTIONS: &[Reaction] = &[
         a: Reactant::Behavior(Behavior::MELTABLE),
         b: Reactant::Material(MaterialID::Lava),
 
-        output_a: MaterialID::Empty,
-        output_b: MaterialID::Lava,
-
-        chance: 0.01,
+        output_a: Some(ReactionOutcome {
+            chance_fn: |a, b| a.properties().lava_resistance,
+            result: (MaterialID::Lava),
+        }),
+        output_b: Some(ReactionOutcome {
+            chance_fn: |a, b| 0.2,
+            result: (MaterialID::Empty),
+        }),
+        chance: 0.05,
     },
 ];
 
@@ -254,11 +299,7 @@ impl Grid {
 
         return macroquad::rand::gen_range(0.0, 1.0) < chance;
     }
-    fn can_rise_swap(&self, a: MaterialID, b: MaterialID) -> bool {
-        a.properties().density < b.properties().density
-            && !a.properties().behavior.contains(Behavior::STATIC)
-            && !b.properties().behavior.contains(Behavior::STATIC)
-    }
+
     fn try_flow(&mut self, cell: MaterialID, x: i32, y: i32, dir: i32, max_dist: i32) -> bool {
         let mut target = None;
 
@@ -310,14 +351,27 @@ impl Grid {
             for reaction in REACTIONS {
                 if reaction.a.matches(cell)
                     && reaction.b.matches(other)
-                    && macroquad::rand::gen_range(0.0, 2.0) < reaction.chance
+                    && macroquad::rand::gen_range(0.0, 1.0) < reaction.chance
                 {
-                    self.set(x, y, reaction.output_a);
-                    self.set(cx, cy, reaction.output_b);
+                    let mut changed = false;
+                    if let Some(oa) = reaction.output_a {
+                        if macroquad::rand::gen_range(0.0, 1.0) < (oa.chance_fn)(cell, other) {
+                            self.set(x, y, oa.result);
+                            changed = true;
+                        }
+                    }
+                    if let Some(ob) = reaction.output_b {
+                        if macroquad::rand::gen_range(0.0, 1.0) < (ob.chance_fn)(cell, other) {
+                            self.set(cx, cy, ob.result);
+                            changed = true;
+                        }
+                    }
 
-                    self.mark_updated(x, y);
-                    self.mark_updated(cx, cy);
-                    return;
+                    if changed {
+                        self.mark_updated(x, y);
+                        self.mark_updated(cx, cy);
+                        return;
+                    }
                 }
             }
         }
@@ -449,6 +503,15 @@ impl Grid {
         }
         return count;
     }
+    pub fn count_by_material(&mut self) -> HashMap<MaterialID, i32> {
+        let mut counts = HashMap::new();
+        for cell in &self.cells {
+            if *cell != MaterialID::Empty {
+                *counts.entry(*cell).or_insert(0) += 1
+            }
+        }
+        return counts;
+    }
 }
 fn screen_to_grid(grid: &Grid, screen_x: f32, screen_y: f32) -> (i32, i32) {
     let grid_x = (screen_x / screen_width() * grid.width as f32) as i32;
@@ -509,6 +572,24 @@ async fn main() {
         // if frame_count % 100 == 0 {
         //     println!("{}", g.total_alive())
         // }
+
+        egui_macroquad::ui(|egui_ctx| {
+            egui::Window::new("Debug").show(egui_ctx, |ui| {
+                ui.label(format!("FPS: {}", get_fps()));
+                ui.separator();
+                ui.label(format!("Total cells alive = {}", g.total_alive()));
+
+                let counts = g.count_by_material();
+                for id in MaterialID::iter() {
+                    if id != MaterialID::Empty {
+                        let count = counts.get(&id).copied().unwrap_or(0);
+                        ui.label(format!("{:?}: {}", id, count));
+                    }
+                }
+            });
+        });
+        egui_macroquad::draw();
+
         next_frame().await;
     }
 }

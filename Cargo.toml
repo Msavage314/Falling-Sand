@@ -5,5 +5,8 @@ edition = "2024"
 
 [dependencies]
 bitflags = "2.13.1"
+egui-macroquad = "0.17.3"
 macroquad = "0.4.15"
 rand = "0.10.2"
+strum = "0.28.0"
+strum_macros = "0.28.0"
