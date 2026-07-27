@@ -168,7 +168,7 @@ impl Grid {
                 new_stain.timer -= get_frame_time();
                 if new_stain.timer <= 0.0 {
                     self.set_stain(x, y, None);
-                    self.set(x, y, MaterialID::Steam);
+                    self.set(x, y, MaterialID::Empty);
                 } else {
                     self.set_stain(x, y, Some(new_stain));
                 }
@@ -199,14 +199,15 @@ impl Grid {
             return;
         }
         let cell = self.get(x, y);
+        let stain = self.get_stain(x, y);
         let properties = cell.properties();
 
         for (cx, cy) in self.get_neighbors(x, y) {
             let other = self.get(cx, cy);
-
+            let other_stain = self.get_stain(cx, cy);
             for reaction in REACTIONS {
-                if reaction.a.matches(cell)
-                    && reaction.b.matches(other)
+                if reaction.a.matches(cell, stain)
+                    && reaction.b.matches(other, other_stain)
                     && macroquad::rand::gen_range(0.0, 1.0) < reaction.chance
                 {
                     let mut changed = false;
