@@ -1,255 +1,22 @@
-use bitflags::bitflags;
+mod materials;
+mod reaction;
+mod stains;
 use egui_macroquad::egui;
-use macroquad::color::Color;
 use macroquad::prelude::*;
+use materials::Behavior;
+use materials::MaterialID;
+use reaction::Product;
+use reaction::REACTIONS;
+use stains::Stain;
+use stains::StainKind;
 use std::collections::HashMap;
-use std::sync::LazyLock;
 use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
-bitflags! {
-    #[derive(Debug,Clone,Copy,PartialEq )]
-    pub struct Behavior: u16 {
-        const FALLS = 1<<0; // Obeys gravity generally. Will fall down
-        const FLOWS = 1 << 1; // flows sideways when blocked
-        const STATIC = 1 << 2; // doesn't move
-        const GRANULAR = 1 <<3; // Piles diagonally when blocked
-        const RISES = 1<<4;
-
-        const MELTABLE = 1<<5; // Destoryed by lava
-
-        const SAND = Self::FALLS.bits() | Self::GRANULAR.bits();
-        const LIQUID = Self::FALLS.bits() | Self::FLOWS.bits() | Self::GRANULAR.bits();
-        const GAS = Self::RISES.bits() |Self::FLOWS.bits();
-    }
-}
-
-/// Stores a material ID that represents a specific material
-#[derive(Debug, Clone, Copy, PartialEq, EnumIter, Eq, Hash)]
-pub enum MaterialID {
-    Empty,
-    Sand,
-    Stone,
-    Water,
-    Slime,
-    Salt,
-    SaltWater,
-    Lava,
-    Steam,
-    Dirt,
-    Snow,
-}
-
-impl MaterialID {
-    /// Returns a `MaterialProperties` struct of the properties associated with the materialID
-    ///
-    /// # Examples
-    /// ```
-    /// let x = MaterialID::Empty
-    /// println!("{}",x.properties().desnsity)
-    /// ```
-    pub fn properties(self) -> &'static MaterialProperties {
-        return &MATERIAL_TABLE[self as usize];
-    }
-}
-static MATERIAL_TABLE: LazyLock<[MaterialProperties; 11]> = LazyLock::new(|| {
-    [
-        /* Empty */
-        MaterialProperties {
-            behavior: Behavior::empty(),
-            density: 0.0,
-            color: Color::new(0.0, 0.0, 0.0, 1.0),
-            flow_distance: 0,
-            lava_resistance: 0.0,
-        },
-        /* Sand  */
-        MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE,
-            density: 1.5,
-            color: Color::new(0.96, 0.82, 0.45, 1.0),
-            flow_distance: 0,
-            lava_resistance: 0.8,
-        },
-        /* Stone */
-        MaterialProperties {
-            behavior: Behavior::STATIC | Behavior::MELTABLE,
-            density: 3.0,
-            color: Color::new(0.5, 0.5, 0.5, 1.0),
-            flow_distance: 0,
-            lava_resistance: 0.05,
-        },
-        /* Water */
-        MaterialProperties {
-            behavior: Behavior::LIQUID,
-            density: 1.0,
-            color: Color::new(0.1, 0.45, 0.82, 1.0),
-            flow_distance: 5,
-            lava_resistance: 1.0,
-        },
-        /* Slime */
-        MaterialProperties {
-            behavior: Behavior::LIQUID,
-            density: 1.3,
-            color: Color::new(0.8, 0.3, 0.8, 1.0),
-            flow_distance: 3,
-            lava_resistance: 1.0,
-        },
-        /* Salt */
-        MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE,
-            density: 1.5,
-            color: Color::new(0.9, 0.9, 1.0, 1.0),
-            flow_distance: 3,
-            lava_resistance: 0.1,
-        },
-        /* Salt Water */
-        MaterialProperties {
-            behavior: Behavior::LIQUID,
-            density: 1.1,
-            color: Color::new(0.43, 0.77, 0.8, 1.0),
-            flow_distance: 3,
-            lava_resistance: 1.0,
-        },
-        /* Lava */
-        MaterialProperties {
-            behavior: Behavior::LIQUID,
-            density: 1.1,
-            color: Color::new(0.95, 0.7, 0.0, 1.0),
-            flow_distance: 1,
-            lava_resistance: 1.0,
-        },
-        /* Steam */
-        MaterialProperties {
-            behavior: Behavior::GAS,
-            density: 0.1,
-            color: Color::new(0.9, 0.9, 0.9, 1.0),
-            flow_distance: 10,
-            lava_resistance: 1.0,
-        },
-        /* Dirt */
-        MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE,
-            density: 1.7,
-            color: Color::new(0.35, 0.23, 0.16, 1.0),
-            flow_distance: 10,
-            lava_resistance: 0.4,
-        },
-        /* Snow */
-        MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE,
-            density: 1.7,
-            color: Color::new(1.0, 1.0, 1.0, 1.0),
-            flow_distance: 10,
-            lava_resistance: 1.0,
-        },
-    ]
-});
-
-#[derive(Debug)]
-pub struct MaterialProperties {
-    pub behavior: Behavior,
-    pub density: f32,
-    pub color: Color,
-
-    pub flow_distance: u8,
-    pub lava_resistance: f32,
-}
-
-/// A reactant can be either a material E.g. Water and Salt or a behavior e.g. Acid and anything with behavior Corrodable
-#[derive(Debug, Clone, Copy)]
-pub enum Reactant {
-    Material(MaterialID),
-    Behavior(Behavior),
-}
-impl Reactant {
-    fn matches(self, mat: MaterialID) -> bool {
-        match self {
-            Reactant::Material(id) => id == mat,
-            Reactant::Behavior(flag) => mat.properties().behavior.contains(flag),
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct ReactionOutcome {
-    pub chance_fn: fn(self_mat: MaterialID, other_mat: MaterialID) -> f32,
-    pub result: MaterialID,
-}
-
-pub struct Reaction {
-    pub a: Reactant,
-    pub b: Reactant,
-
-    pub output_a: Option<ReactionOutcome>,
-    pub output_b: Option<ReactionOutcome>,
-
-    pub chance: f32,
-}
-
-static REACTIONS: &[Reaction] = &[
-    Reaction {
-        a: Reactant::Material(MaterialID::Salt),
-        b: Reactant::Material(MaterialID::Water),
-
-        output_a: Some(ReactionOutcome {
-            chance_fn: |a, b| 1.0,
-            result: (MaterialID::SaltWater),
-        }),
-        output_b: Some(ReactionOutcome {
-            chance_fn: |a, b| 0.5,
-            result: (MaterialID::Water),
-        }),
-        chance: 0.1,
-    },
-    Reaction {
-        a: Reactant::Material(MaterialID::Lava),
-        b: Reactant::Material(MaterialID::Water),
-
-        output_a: Some(ReactionOutcome {
-            chance_fn: |a, b| 0.5,
-            result: (MaterialID::Stone),
-        }),
-        output_b: Some(ReactionOutcome {
-            chance_fn: |a, b| 1.0,
-            result: (MaterialID::Steam),
-        }),
-
-        chance: 0.5,
-    },
-    Reaction {
-        a: Reactant::Material(MaterialID::Steam),
-        b: Reactant::Material(MaterialID::Steam),
-
-        output_a: Some(ReactionOutcome {
-            chance_fn: |a, b| 0.1,
-            result: (MaterialID::Water),
-        }),
-        output_b: Some(ReactionOutcome {
-            chance_fn: |a, b| 1.0,
-            result: (MaterialID::Empty),
-        }),
-
-        chance: 0.01,
-    },
-    Reaction {
-        a: Reactant::Behavior(Behavior::MELTABLE),
-        b: Reactant::Material(MaterialID::Lava),
-
-        output_a: Some(ReactionOutcome {
-            chance_fn: |a, b| a.properties().lava_resistance,
-            result: (MaterialID::Lava),
-        }),
-        output_b: Some(ReactionOutcome {
-            chance_fn: |a, b| 0.2,
-            result: (MaterialID::Empty),
-        }),
-        chance: 0.05,
-    },
-];
 
 pub struct Grid {
     pub width: usize,
     pub height: usize,
     cells: Vec<MaterialID>,
+    stains: Vec<Option<Stain>>,
     image: Image,
     texture: Texture2D,
     updated: Vec<bool>,
@@ -264,11 +31,13 @@ impl Grid {
             width: width,
             height: height,
             cells: vec![MaterialID::Empty; width * height],
+            stains: vec![None; width * height],
             image,
             texture,
             updated: vec![false; width * height],
         };
     }
+
     pub fn get(&self, x: i32, y: i32) -> MaterialID {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return MaterialID::Stone;
@@ -276,12 +45,28 @@ impl Grid {
 
         return self.cells[y as usize * self.width + x as usize];
     }
+
     pub fn set(&mut self, x: i32, y: i32, value: MaterialID) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
         self.cells[y as usize * self.width + x as usize] = value
     }
+
+    pub fn get_stain(&self, x: i32, y: i32) -> Option<Stain> {
+        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+            return None;
+        }
+        return self.stains[y as usize * self.width + x as usize];
+    }
+
+    pub fn set_stain(&mut self, x: i32, y: i32, value: Option<Stain>) {
+        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+            return;
+        }
+        self.stains[y as usize * self.width + x as usize] = value
+    }
+
     fn can_density_swap(&mut self, cell_a: MaterialID, cell_b: MaterialID) -> bool {
         if cell_a.properties().behavior.contains(Behavior::STATIC)
             || cell_b.properties().behavior.contains(Behavior::STATIC)
@@ -334,16 +119,79 @@ impl Grid {
     fn swap_cells(&mut self, x1: i32, y1: i32, x2: i32, y2: i32) {
         let a = self.get(x1, y1);
         let b = self.get(x2, y2);
+        let stain_a = self.get_stain(x1, y1);
+        let stain_b = self.get_stain(x2, y2);
 
         self.set(x1, y1, b);
         self.set(x2, y2, a);
+        self.set_stain(x1, y1, stain_b);
+        self.set_stain(x2, y2, stain_a);
 
         self.mark_updated(x1, y1);
         self.mark_updated(x2, y2);
     }
+
     fn get_neighbors(&mut self, x: i32, y: i32) -> [(i32, i32); 4] {
         let neighbors = [(0, -1), (1, 0), (0, 1), (-1, 0)];
         return neighbors.map(|c| (c.0 + x, c.1 + y));
+    }
+
+    fn update_stain(&mut self, x: i32, y: i32) {
+        let Some(stain) = self.get_stain(x, y) else {
+            return;
+        };
+
+        let cell = self.get(x, y);
+
+        match stain.kind {
+            StainKind::Burning => {
+                for (nx, ny) in self.get_neighbors(x, y) {
+                    if self.get_stain(nx, ny).is_none() {
+                        let neighbor_material = self.get(nx, ny);
+                        let flammability = neighbor_material.properties().flammability;
+                        if flammability > 0.0
+                            && macroquad::rand::gen_range(0.0, 1.0) < flammability * 0.1
+                        {
+                            self.set_stain(
+                                nx,
+                                ny,
+                                Some(Stain {
+                                    kind: StainKind::Burning,
+                                    intensity: 1.0,
+                                    timer: 3.0, // 3 seconds of burning
+                                }),
+                            )
+                        }
+                    }
+                }
+                let mut new_stain = stain;
+                new_stain.timer -= get_frame_time();
+                if new_stain.timer <= 0.0 {
+                    self.set_stain(x, y, None);
+                    self.set(x, y, MaterialID::Steam);
+                } else {
+                    self.set_stain(x, y, Some(new_stain));
+                }
+            }
+        }
+    }
+    fn apply_product(&mut self, x: i32, y: i32, product: Product) {
+        match product {
+            Product::Material(mat) => {
+                self.set(x, y, mat);
+            }
+            Product::Stain(kind) => {
+                self.set_stain(
+                    x,
+                    y,
+                    Some(Stain {
+                        kind,
+                        intensity: 1.0,
+                        timer: 3.0,
+                    }),
+                );
+            }
+        }
     }
     fn update_cell(&mut self, x: i32, y: i32) {
         let idx = y as usize * self.width + x as usize;
@@ -355,6 +203,7 @@ impl Grid {
 
         for (cx, cy) in self.get_neighbors(x, y) {
             let other = self.get(cx, cy);
+
             for reaction in REACTIONS {
                 if reaction.a.matches(cell)
                     && reaction.b.matches(other)
@@ -363,13 +212,13 @@ impl Grid {
                     let mut changed = false;
                     if let Some(oa) = reaction.output_a {
                         if macroquad::rand::gen_range(0.0, 1.0) < (oa.chance_fn)(cell, other) {
-                            self.set(x, y, oa.result);
+                            self.apply_product(x, y, oa.result);
                             changed = true;
                         }
                     }
                     if let Some(ob) = reaction.output_b {
                         if macroquad::rand::gen_range(0.0, 1.0) < (ob.chance_fn)(cell, other) {
-                            self.set(cx, cy, ob.result);
+                            self.apply_product(cx, cy, ob.result);
                             changed = true;
                         }
                     }
@@ -457,10 +306,12 @@ impl Grid {
             if left {
                 for x in (0..self.width).rev() {
                     self.update_cell(x as i32, y as i32);
+                    self.update_stain(x as i32, y as i32);
                 }
             } else {
                 for x in 0..self.width {
                     self.update_cell(x as i32, y as i32);
+                    self.update_stain(x as i32, y as i32);
                 }
             }
         }
@@ -469,8 +320,20 @@ impl Grid {
         for y in 0..self.height {
             for x in 0..self.width {
                 let id = self.cells[y * self.width + x];
-                self.image
-                    .set_pixel(x as u32, y as u32, id.properties().color);
+                let base_color = id.properties().color;
+                let final_color = match self.get_stain(x as i32, y as i32) {
+                    Some(stain) if stain.kind == StainKind::Burning => {
+                        // flicker between orange/red based on intensity, blended with base
+                        Color::new(
+                            base_color.r * 0.3 + 0.95 * 0.7,
+                            base_color.g * 0.3 + 0.4 * 0.7,
+                            base_color.b * 0.3,
+                            1.0,
+                        )
+                    }
+                    _ => base_color,
+                };
+                self.image.set_pixel(x as u32, y as u32, final_color);
             }
         }
 
@@ -541,6 +404,19 @@ async fn main() {
             let (gx, gy) = screen_to_grid(&g, mx, my);
             g.draw_brush(gx, gy, radius, active);
         }
+        if is_mouse_button_down(MouseButton::Right) {
+            let (mx, my) = mouse_position();
+            let (gx, gy) = screen_to_grid(&g, mx, my);
+            g.set_stain(
+                gx,
+                gy,
+                Some(Stain {
+                    kind: StainKind::Burning,
+                    intensity: 1.0,
+                    timer: 3.0, // 3 seconds of burning
+                }),
+            )
+        }
         if is_key_pressed(KeyCode::Key0) {
             active = MaterialID::Empty
         } else if is_key_pressed(KeyCode::Key1) {
@@ -558,7 +434,9 @@ async fn main() {
         } else if is_key_pressed(KeyCode::Key7) {
             active = MaterialID::Steam
         } else if is_key_pressed(KeyCode::Key8) {
-            active = MaterialID::Dirt
+            active = MaterialID::Wood
+        } else if is_key_pressed(KeyCode::Key9) {
+            active = MaterialID::Oil
         }
 
         if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
