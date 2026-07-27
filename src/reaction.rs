@@ -159,4 +159,18 @@ pub static REACTIONS: &[Reaction] = &[
         }),
         chance: 0.01,
     },
+    Reaction {
+        a: Reactant::Material(MaterialID::Acid),
+        b: Reactant::Behavior(Behavior::CORRODABLE),
+
+        output_a: Some(ReactionOutcome {
+            chance_fn: |a, b| 0.1,
+            result: Product::Material(MaterialID::Empty),
+        }),
+        output_b: Some(ReactionOutcome {
+            chance_fn: |a, b| 1.0,
+            result: Product::Material(MaterialID::Empty),
+        }),
+        chance: 0.1,
+    },
 ];

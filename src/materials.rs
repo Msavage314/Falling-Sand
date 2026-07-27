@@ -16,6 +16,8 @@ bitflags! {
         const MELTABLE = 1<<5; // Destoryed by lava
         const FLAMMABLE = 1 <<6;
 
+        const CORRODABLE = 1<<7;
+
         const SAND = Self::FALLS.bits() | Self::GRANULAR.bits();
         const LIQUID = Self::FALLS.bits() | Self::FLOWS.bits() | Self::GRANULAR.bits();
         const GAS = Self::RISES.bits() |Self::FLOWS.bits();
@@ -40,6 +42,8 @@ pub enum MaterialID {
     Wood,
     Fire,
     Smoke,
+    Acid,
+    DenseRock,
 }
 impl MaterialID {
     /// Returns a `MaterialProperties` struct of the properties associated with the materialID
@@ -54,7 +58,7 @@ impl MaterialID {
     }
 }
 
-pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(|| {
+pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(|| {
     [
         /* Empty */
         MaterialProperties {
@@ -67,7 +71,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Sand  */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE,
+            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODABLE,
             density: 1.5,
             color: Color::new(0.96, 0.82, 0.45, 1.0),
             flow_distance: 0,
@@ -76,7 +80,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Stone */
         MaterialProperties {
-            behavior: Behavior::STATIC | Behavior::MELTABLE,
+            behavior: Behavior::STATIC | Behavior::MELTABLE | Behavior::CORRODABLE,
             density: 3.0,
             color: Color::new(0.5, 0.5, 0.5, 1.0),
             flow_distance: 0,
@@ -85,7 +89,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Water */
         MaterialProperties {
-            behavior: Behavior::LIQUID,
+            behavior: Behavior::LIQUID | Behavior::CORRODABLE,
             density: 1.0,
             color: Color::new(0.1, 0.45, 0.82, 1.0),
             flow_distance: 5,
@@ -103,7 +107,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Salt */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE,
+            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODABLE,
             density: 1.5,
             color: Color::new(0.9, 0.9, 1.0, 1.0),
             flow_distance: 3,
@@ -112,7 +116,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Salt Water */
         MaterialProperties {
-            behavior: Behavior::LIQUID,
+            behavior: Behavior::LIQUID | Behavior::CORRODABLE,
             density: 1.1,
             color: Color::new(0.43, 0.77, 0.8, 1.0),
             flow_distance: 3,
@@ -121,7 +125,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Lava */
         MaterialProperties {
-            behavior: Behavior::LIQUID,
+            behavior: Behavior::LIQUID | Behavior::CORRODABLE,
             density: 1.1,
             color: Color::new(0.95, 0.7, 0.0, 1.0),
             flow_distance: 1,
@@ -130,7 +134,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Steam */
         MaterialProperties {
-            behavior: Behavior::GAS,
+            behavior: Behavior::GAS | Behavior::CORRODABLE,
             density: 0.1,
             color: Color::new(0.9, 0.9, 0.9, 1.0),
             flow_distance: 10,
@@ -139,7 +143,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Dirt */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE,
+            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODABLE,
             density: 1.7,
             color: Color::new(0.35, 0.23, 0.16, 1.0),
             flow_distance: 10,
@@ -148,7 +152,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Snow */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE,
+            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODABLE,
             density: 1.7,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
             flow_distance: 10,
@@ -157,7 +161,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Oil */
         MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::FLAMMABLE,
+            behavior: Behavior::LIQUID | Behavior::FLAMMABLE | Behavior::CORRODABLE,
             density: 0.9,
             color: Color::new(0.14, 0.1, 0.05, 1.0),
             flow_distance: 3,
@@ -166,7 +170,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Wood */
         MaterialProperties {
-            behavior: Behavior::STATIC | Behavior::FLAMMABLE,
+            behavior: Behavior::STATIC | Behavior::FLAMMABLE | Behavior::CORRODABLE,
             density: 1.7,
             color: Color::new(0.18, 0.12, 0.0, 1.0),
             flow_distance: 10,
@@ -184,10 +188,28 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 15]> = LazyLock::new(||
         },
         /* Smoke */
         MaterialProperties {
-            behavior: Behavior::GAS,
+            behavior: Behavior::GAS | Behavior::CORRODABLE,
             density: 0.1,
             color: Color::new(0.4, 0.4, 0.4, 1.0),
             flow_distance: 2,
+            lava_resistance: 1.0,
+            flammability: 0.0,
+        },
+        /* Acid */
+        MaterialProperties {
+            behavior: Behavior::LIQUID,
+            density: 0.9,
+            color: Color::new(0.14, 0.74, 0.31, 1.0),
+            flow_distance: 4,
+            lava_resistance: 1.0,
+            flammability: 0.0,
+        },
+        /* DenseRock */
+        MaterialProperties {
+            behavior: Behavior::STATIC,
+            density: 0.9,
+            color: Color::new(0.2, 0.2, 0.2, 1.0),
+            flow_distance: 4,
             lava_resistance: 1.0,
             flammability: 0.0,
         },

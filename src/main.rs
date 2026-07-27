@@ -40,7 +40,7 @@ impl Grid {
 
     pub fn get(&self, x: i32, y: i32) -> MaterialID {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
-            return MaterialID::Stone;
+            return MaterialID::DenseRock;
         }
 
         return self.cells[y as usize * self.width + x as usize];
@@ -113,6 +113,9 @@ impl Grid {
         }
     }
     fn mark_updated(&mut self, x: i32, y: i32) {
+        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+            return;
+        }
         let idx = y as usize * self.width + x as usize;
         self.updated[idx] = true
     }
@@ -429,11 +432,11 @@ async fn main() {
         } else if is_key_pressed(KeyCode::Key4) {
             active = MaterialID::Slime
         } else if is_key_pressed(KeyCode::Key5) {
-            active = MaterialID::Salt
+            active = MaterialID::Acid
         } else if is_key_pressed(KeyCode::Key6) {
             active = MaterialID::Lava
         } else if is_key_pressed(KeyCode::Key7) {
-            active = MaterialID::Steam
+            active = MaterialID::DenseRock
         } else if is_key_pressed(KeyCode::Key8) {
             active = MaterialID::Wood
         } else if is_key_pressed(KeyCode::Key9) {
