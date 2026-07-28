@@ -87,7 +87,7 @@ impl Grid {
             return false;
         }
 
-        let chance = (diff / cell_a.properties().density.clamp(0.0, 1.0));
+        let chance = diff / cell_a.properties().density.clamp(0.0, 1.0);
 
         return macroquad::rand::gen_range(0.0, 1.0) < chance;
     }
@@ -320,6 +320,26 @@ impl Grid {
             }
         }
     }
+    fn compute_grid_dest_rect(&mut self) -> (f32, f32, f32, f32) {
+        let grid_aspect = self.width as f32 / self.height as f32;
+        let screen_aspect = screen_width() / screen_height();
+
+        let (w, h) = if screen_aspect > grid_aspect {
+            // window wider than grid -> letterbox left/right
+            let h = screen_height();
+            let w = h * grid_aspect;
+            (w, h)
+        } else {
+            // window taller than grid -> letterbox top/bottom
+            let w = screen_width();
+            let h = w / grid_aspect;
+            (w, h)
+        };
+
+        let x = (screen_width() - w) * 0.5;
+        let y = (screen_height() - h) * 0.5;
+        return (x, y, w, h);
+    }
     pub fn update_texture(&mut self) {
         for y in 0..self.height {
             for x in 0..self.width {
@@ -346,13 +366,15 @@ impl Grid {
 
     pub fn draw(&mut self) {
         self.update_texture();
+
+        let (x, y, w, h) = self.compute_grid_dest_rect();
         draw_texture_ex(
             &self.texture,
-            0.0,
-            0.0,
+            x,
+            y,
             WHITE,
             DrawTextureParams {
-                dest_size: Some(vec2(screen_width(), screen_height())),
+                dest_size: Some(vec2(w, h)),
                 ..Default::default()
             },
         )
@@ -387,9 +409,10 @@ impl Grid {
         return counts;
     }
 }
-fn screen_to_grid(grid: &Grid, screen_x: f32, screen_y: f32) -> (i32, i32) {
-    let grid_x = (screen_x / screen_width() * grid.width as f32) as i32;
-    let grid_y = (screen_y / screen_height() * grid.height as f32) as i32;
+fn screen_to_grid(grid: &mut Grid, screen_x: f32, screen_y: f32) -> (i32, i32) {
+    let (rx, ry, rw, rh) = grid.compute_grid_dest_rect();
+    let grid_x = ((screen_x - rx) / rw * grid.width as f32) as i32;
+    let grid_y = ((screen_y - ry) / rh * grid.height as f32) as i32;
     (grid_x, grid_y)
 }
 
@@ -405,12 +428,12 @@ async fn main() {
 
         if is_mouse_button_down(MouseButton::Left) {
             let (mx, my) = mouse_position();
-            let (gx, gy) = screen_to_grid(&g, mx, my);
+            let (gx, gy) = screen_to_grid(&mut g, mx, my);
             g.draw_brush(gx, gy, radius, active);
         }
         if is_mouse_button_down(MouseButton::Right) {
             let (mx, my) = mouse_position();
-            let (gx, gy) = screen_to_grid(&g, mx, my);
+            let (gx, gy) = screen_to_grid(&mut g, mx, my);
             g.set_stain(
                 gx,
                 gy,
@@ -443,6 +466,11 @@ async fn main() {
             active = MaterialID::Oil
         }
 
+        let (_, scroll_y) = mouse_wheel();
+        if scroll_y != 0.0 {
+            radius = (radius + scroll_y.signum() as i32).clamp(1, 50);
+        }
+
         if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
             radius += 1;
         }
@@ -457,6 +485,11 @@ async fn main() {
         g.update(frame_count % 2 == 0);
 
         g.draw();
+        let (rx, ry, rw, _rh) = g.compute_grid_dest_rect();
+        let pixel_scale = rw / g.width as f32;
+
+        let (mx, my) = mouse_position();
+        draw_circle_lines(mx, my, radius as f32 * pixel_scale, 1.5, WHITE);
 
         // if frame_count % 100 == 0 {
         //     println!("{}", g.total_alive())
@@ -475,6 +508,16 @@ async fn main() {
                         ui.label(format!("{:?}: {}", id, count));
                     }
                 }
+            });
+            egui::Window::new("Materials").show(egui_ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    for id in MaterialID::iter() {
+                        let selected = active == id;
+                        if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
+                            active = id;
+                        }
+                    }
+                });
             });
         });
         egui_macroquad::draw();
