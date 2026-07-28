@@ -112,6 +112,7 @@ impl Grid {
             return false;
         }
     }
+
     fn mark_updated(&mut self, x: i32, y: i32) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
@@ -119,6 +120,7 @@ impl Grid {
         let idx = y as usize * self.width + x as usize;
         self.updated[idx] = true
     }
+
     fn swap_cells(&mut self, x1: i32, y1: i32, x2: i32, y2: i32) {
         let a = self.get(x1, y1);
         let b = self.get(x2, y2);
@@ -143,28 +145,35 @@ impl Grid {
         let Some(stain) = self.get_stain(x, y) else {
             return;
         };
-
         let cell = self.get(x, y);
 
         match stain.kind {
             StainKind::Burning => {
                 for (nx, ny) in self.get_neighbors(x, y) {
-                    if self.get_stain(nx, ny).is_none() {
-                        let neighbor_material = self.get(nx, ny);
-                        let flammability = neighbor_material.properties().flammability;
-                        if flammability > 0.0
-                            && macroquad::rand::gen_range(0.0, 1.0) < flammability * 0.1
-                        {
-                            self.set_stain(
-                                nx,
-                                ny,
-                                Some(Stain {
-                                    kind: StainKind::Burning,
-                                    intensity: 1.0,
-                                    timer: 3.0, // 3 seconds of burning
-                                }),
-                            )
-                        }
+                    let neighbor_stain = self.get_stain(nx, ny);
+
+                    let flammability_multiplier = match neighbor_stain {
+                        None => 1.0,
+                        Some(s) if s.kind == StainKind::Wet => 1.0 - s.intensity,
+                        _ => continue,
+                    };
+
+                    let neighbor_material = self.get(nx, ny);
+                    let flammability =
+                        neighbor_material.properties().flammability * flammability_multiplier;
+
+                    if flammability > 0.0
+                        && macroquad::rand::gen_range(0.0, 1.0) < flammability * 0.1
+                    {
+                        self.set_stain(
+                            nx,
+                            ny,
+                            Some(Stain {
+                                kind: StainKind::Burning,
+                                intensity: 1.0,
+                                timer: 3.0, // 3 seconds of burning
+                            }),
+                        )
                     }
                 }
                 let mut new_stain = stain;
@@ -176,8 +185,59 @@ impl Grid {
                     self.set_stain(x, y, Some(new_stain));
                 }
             }
+            StainKind::Wet => {
+                if stain.intensity == 0.0 {
+                    self.set_stain(x, y, None);
+                    return;
+                }
+                for (nx, ny) in self.get_neighbors(x, y) {
+                    let neighbor_stain = self.get_stain(nx, ny);
+                    let neighbor_material = self.get(nx, ny);
+
+                    match neighbor_stain {
+                        // Douse fire upon contact
+                        Some(s) if s.kind == StainKind::Burning => {
+                            if macroquad::rand::gen_range(0.0, 1.0) < 0.01 {
+                                self.set_stain(
+                                    nx,
+                                    ny,
+                                    Some(Stain {
+                                        kind: StainKind::Wet,
+                                        intensity: (self.get_stain(x, y).unwrap().intensity - 0.1)
+                                            .clamp(0.0, 1.0),
+                                        timer: 2.0,
+                                    }),
+                                );
+                            }
+                        }
+                        None if neighbor_material != MaterialID::Empty => {
+                            if macroquad::rand::gen_range(0.0, 1.0) < 0.01 {
+                                self.set_stain(
+                                    nx,
+                                    ny,
+                                    Some(Stain {
+                                        kind: StainKind::Wet,
+                                        intensity: (self.get_stain(x, y).unwrap().intensity - 0.1)
+                                            .clamp(0.0, 1.0),
+                                        timer: 2.0,
+                                    }),
+                                )
+                            };
+                        }
+                        _ => {}
+                    }
+                }
+                let mut new_stain = stain;
+                new_stain.timer -= get_frame_time();
+                if new_stain.timer <= 0.0 {
+                    self.set_stain(x, y, None);
+                } else {
+                    self.set_stain(x, y, Some(new_stain));
+                }
+            }
         }
     }
+
     fn apply_product(&mut self, x: i32, y: i32, product: Product) {
         match product {
             Product::Material(mat) => {
@@ -196,6 +256,7 @@ impl Grid {
             }
         }
     }
+
     fn update_cell(&mut self, x: i32, y: i32) {
         let idx = y as usize * self.width + x as usize;
         if self.updated[idx] {
@@ -303,6 +364,7 @@ impl Grid {
         //     }
         // }
     }
+
     pub fn update(&mut self, left: bool) {
         self.updated.fill(false);
 
@@ -320,6 +382,7 @@ impl Grid {
             }
         }
     }
+
     fn compute_grid_dest_rect(&mut self) -> (f32, f32, f32, f32) {
         let grid_aspect = self.width as f32 / self.height as f32;
         let screen_aspect = screen_width() / screen_height();
@@ -340,6 +403,7 @@ impl Grid {
         let y = (screen_height() - h) * 0.5;
         return (x, y, w, h);
     }
+
     pub fn update_texture(&mut self) {
         for y in 0..self.height {
             for x in 0..self.width {
@@ -355,6 +419,7 @@ impl Grid {
                             1.0,
                         )
                     }
+                    Some(stain) if stain.kind == StainKind::Wet => Color::new(0.15, 0.0, 0.78, 1.0),
                     _ => base_color,
                 };
                 self.image.set_pixel(x as u32, y as u32, final_color);
@@ -379,6 +444,7 @@ impl Grid {
             },
         )
     }
+
     pub fn draw_brush(&mut self, cx: i32, cy: i32, radius: i32, material: MaterialID) {
         let r2 = radius * radius;
 
@@ -390,6 +456,7 @@ impl Grid {
             }
         }
     }
+
     pub fn total_alive(&mut self) -> i32 {
         let mut count = 0;
         for cell in &self.cells {
@@ -399,6 +466,7 @@ impl Grid {
         }
         return count;
     }
+
     pub fn count_by_material(&mut self) -> HashMap<MaterialID, i32> {
         let mut counts = HashMap::new();
         for cell in &self.cells {

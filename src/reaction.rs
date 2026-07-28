@@ -173,4 +173,26 @@ pub static REACTIONS: &[Reaction] = &[
         }),
         chance: 0.1,
     },
+    Reaction {
+        a: Reactant::Material(MaterialID::Water),
+        b: Reactant::Stain(StainKind::Burning),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            chance_fn: |_a, _b| 1.0,
+            result: Product::Stain(StainKind::Wet),
+        }),
+        chance: 0.5,
+    },
+    // Reaction {
+    //     a: Reactant::Material(MaterialID::Water),
+    //     b: Reactant::Material(MaterialID::Wood),
+
+    //     output_a: None,
+    //     output_b: Some(ReactionOutcome {
+    //         chance_fn: |_a, _b| 1.0,
+    //         result: Product::Stain(StainKind::Wet),
+    //     }),
+    //     chance: 0.05,
+    // },
 ];

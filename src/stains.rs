@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StainKind {
     Burning,
+    Wet,
 }
 
 #[derive(Debug, Clone, Copy)]
