@@ -211,7 +211,7 @@ impl Grid {
                             }
                         }
                         None if neighbor_material != MaterialID::Empty => {
-                            if macroquad::rand::gen_range(0.0, 1.0) < 0.01 {
+                            if macroquad::rand::gen_range(0.0, 1.0) < 0.1 {
                                 self.set_stain(
                                     nx,
                                     ny,
@@ -419,7 +419,15 @@ impl Grid {
                             1.0,
                         )
                     }
-                    Some(stain) if stain.kind == StainKind::Wet => Color::new(0.15, 0.0, 0.78, 1.0),
+                    Some(stain) if stain.kind == StainKind::Wet => {
+                        let darken = 1.0 - 0.3 * stain.intensity;
+                        Color::new(
+                            base_color.r * darken,
+                            base_color.g * darken,
+                            base_color.b * darken,
+                            1.0,
+                        )
+                    }
                     _ => base_color,
                 };
                 self.image.set_pixel(x as u32, y as u32, final_color);
