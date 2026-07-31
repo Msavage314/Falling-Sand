@@ -67,7 +67,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         MaterialProperties {
             behavior: Behavior::empty(),
             density: 0.0,
-            color: Color::new(0.0, 0.0, 0.0, 1.0),
+            color: Color::new(0.05, 0.05, 0.05, 1.0),
             flow_distance: 0,
             lava_resistance: 0.0,
             flammability: 0.0,

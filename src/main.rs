@@ -418,6 +418,16 @@ fn screen_to_grid(grid: &mut Grid, screen_x: f32, screen_y: f32) -> (i32, i32) {
     let grid_y = ((screen_y - ry) / rh * grid.height as f32) as i32;
     (grid_x, grid_y)
 }
+fn compute_side_panel_rect(grid_rx: f32, grid_rw: f32) -> Option<(f32, f32, f32, f32)> {
+    // Space to the right of the grid
+    let panel_x = grid_rx + grid_rw;
+    let panel_w = screen_width() - panel_x;
+
+    if panel_w < 40.0 {
+        return None; // No meaningful space
+    }
+    Some((panel_x, 0.0, panel_w, screen_height()))
+}
 
 #[macroquad::main("Falling Sand")]
 async fn main() {
@@ -449,42 +459,45 @@ async fn main() {
 
         // Stores whether you have clicked on a egui window, to prevent it drawing underneath
         let mut egui_wants_pointer = false;
-
+        let (rx, ry, rw, rh) = g.compute_grid_dest_rect();
         egui_macroquad::ui(|egui_ctx| {
             egui_wants_pointer = egui_ctx.wants_pointer_input();
-            egui::Window::new("Debug").show(egui_ctx, |ui| {
-                ui.label(format!("FPS: {}", get_fps()));
-                ui.separator();
-                ui.label(format!("Total cells alive = {}", g.total_alive()));
+            if let Some((px, py, pw, _ph)) = compute_side_panel_rect(rx, rw) {
+                egui::Window::new("Debug").show(egui_ctx, |ui| {
+                    ui.label(format!("FPS: {}", get_fps()));
+                    ui.separator();
+                    ui.label(format!("Total cells alive = {}", g.total_alive()));
 
-                let counts = g.count_by_material();
-                for id in MaterialID::iter() {
-                    if id != MaterialID::Empty {
-                        let count = counts.get(&id).copied().unwrap_or(0);
-                        ui.label(format!("{:?}: {}", id, count));
-                    }
-                }
-            });
-            egui::Window::new("Materials").show(egui_ctx, |ui| {
-                ui.horizontal_wrapped(|ui| {
+                    let counts = g.count_by_material();
                     for id in MaterialID::iter() {
-                        let selected = active == id;
-                        if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
-                            active = id;
+                        if id != MaterialID::Empty {
+                            let count = counts.get(&id).copied().unwrap_or(0);
+                            ui.label(format!("{:?}: {}", id, count));
                         }
                     }
                 });
-            });
-            egui::Window::new("Config").show(egui_ctx, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    for id in BORDER_OPTIONS {
-                        let selected = g.border == id;
-                        if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
-                            g.border = id
+
+                egui::SidePanel::right("Materials")
+                    .exact_width(pw)
+                    .show(egui_ctx, |ui| {
+                        for id in MaterialID::iter() {
+                            let selected = active == id;
+                            if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
+                                active = id;
+                            }
                         }
-                    }
+                    });
+                egui::Window::new("Config").show(egui_ctx, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        for id in BORDER_OPTIONS {
+                            let selected = g.border == id;
+                            if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
+                                g.border = id
+                            }
+                        }
+                    });
                 });
-            });
+            }
         });
         // Only accept mouse input if you are clicking on something other than the ui
         if !egui_wants_pointer {
