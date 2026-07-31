@@ -463,20 +463,6 @@ async fn main() {
         egui_macroquad::ui(|egui_ctx| {
             egui_wants_pointer = egui_ctx.wants_pointer_input();
             if let Some((px, py, pw, _ph)) = compute_side_panel_rect(rx, rw) {
-                egui::Window::new("Debug").show(egui_ctx, |ui| {
-                    ui.label(format!("FPS: {}", get_fps()));
-                    ui.separator();
-                    ui.label(format!("Total cells alive = {}", g.total_alive()));
-
-                    let counts = g.count_by_material();
-                    for id in MaterialID::iter() {
-                        if id != MaterialID::Empty {
-                            let count = counts.get(&id).copied().unwrap_or(0);
-                            ui.label(format!("{:?}: {}", id, count));
-                        }
-                    }
-                });
-
                 egui::SidePanel::right("Materials")
                     .exact_width(pw)
                     .show(egui_ctx, |ui| {
@@ -487,16 +473,34 @@ async fn main() {
                             }
                         }
                     });
-                egui::Window::new("Config").show(egui_ctx, |ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        for id in BORDER_OPTIONS {
-                            let selected = g.border == id;
-                            if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
-                                g.border = id
+                egui::SidePanel::left("Info")
+                    .exact_width(pw)
+                    .show(egui_ctx, |ui| {
+                        ui.heading("Debug");
+                        ui.label(format!("FPS: {}", get_fps()));
+                        ui.separator();
+                        ui.label(format!("Total cells alive = {}", g.total_alive()));
+
+                        let counts = g.count_by_material();
+                        for id in MaterialID::iter() {
+                            if id != MaterialID::Empty {
+                                let count = counts.get(&id).copied().unwrap_or(0);
+                                ui.label(format!("{:?}: {}", id, count));
                             }
                         }
+                        ui.separator();
+                        ui.heading("Config");
+                        ui.separator();
+                        ui.label("Border Material");
+                        ui.horizontal_wrapped(|ui| {
+                            for id in BORDER_OPTIONS {
+                                let selected = g.border == id;
+                                if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
+                                    g.border = id
+                                }
+                            }
+                        });
                     });
-                });
             }
         });
         // Only accept mouse input if you are clicking on something other than the ui
