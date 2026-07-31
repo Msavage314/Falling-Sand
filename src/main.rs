@@ -15,6 +15,8 @@ use stains::StainKind;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
+const BORDER_OPTIONS: [MaterialID; 2] = [MaterialID::Empty, MaterialID::DenseRock];
+
 pub struct Grid {
     pub width: usize,
     pub height: usize,
@@ -22,9 +24,10 @@ pub struct Grid {
     image: Image,
     texture: Texture2D,
     updated: Vec<bool>,
+    border: MaterialID, // The material constituiting the edge of the simulation
 }
 impl Grid {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize, border: MaterialID) -> Self {
         let image = Image::gen_image_color(width as u16, height as u16, BLACK);
         let texture = Texture2D::from_image(&image);
         texture.set_filter(FilterMode::Nearest);
@@ -42,13 +45,14 @@ impl Grid {
             image,
             texture,
             updated: vec![false; width * height],
+            border,
         };
     }
 
     pub fn get(&self, x: i32, y: i32) -> Cell {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return Cell {
-                material: MaterialID::DenseRock,
+                material: self.border,
                 stain: None,
             };
         }
@@ -414,110 +418,139 @@ fn screen_to_grid(grid: &mut Grid, screen_x: f32, screen_y: f32) -> (i32, i32) {
     let grid_y = ((screen_y - ry) / rh * grid.height as f32) as i32;
     (grid_x, grid_y)
 }
+fn compute_side_panel_rect(grid_rx: f32, grid_rw: f32) -> Option<(f32, f32, f32, f32)> {
+    // Space to the right of the grid
+    let panel_x = grid_rx + grid_rw;
+    let panel_w = screen_width() - panel_x;
+
+    if panel_w < 40.0 {
+        return None; // No meaningful space
+    }
+    Some((panel_x, 0.0, panel_w, screen_height()))
+}
 
 #[macroquad::main("Falling Sand")]
 async fn main() {
-    let mut g = Grid::new(200, 150);
+    let mut g = Grid::new(200, 150, MaterialID::DenseRock);
     let mut frame_count = 0;
     let mut active = MaterialID::Sand;
     let mut radius = 1;
+    let mut playing = true;
     loop {
         clear_background(BLACK);
-
-        if is_mouse_button_down(MouseButton::Left) {
-            let (mx, my) = mouse_position();
-            let (gx, gy) = screen_to_grid(&mut g, mx, my);
-            g.draw_brush(gx, gy, radius, active);
-        }
-        if is_mouse_button_down(MouseButton::Right) {
-            let (mx, my) = mouse_position();
-            let (gx, gy) = screen_to_grid(&mut g, mx, my);
-            g.set_stain(
-                gx,
-                gy,
-                Some(Stain {
-                    kind: StainKind::Burning,
-                    intensity: 1.0,
-                    timer: 3.0, // 3 seconds of burning
-                }),
-            )
-        }
-        if is_key_pressed(KeyCode::Key0) {
-            active = MaterialID::Empty
-        } else if is_key_pressed(KeyCode::Key1) {
-            active = MaterialID::Sand
-        } else if is_key_pressed(KeyCode::Key2) {
-            active = MaterialID::Stone
-        } else if is_key_pressed(KeyCode::Key3) {
-            active = MaterialID::Water
-        } else if is_key_pressed(KeyCode::Key4) {
-            active = MaterialID::Slime
-        } else if is_key_pressed(KeyCode::Key5) {
-            active = MaterialID::Acid
-        } else if is_key_pressed(KeyCode::Key6) {
-            active = MaterialID::Lava
-        } else if is_key_pressed(KeyCode::Key7) {
-            active = MaterialID::DenseRock
-        } else if is_key_pressed(KeyCode::Key8) {
-            active = MaterialID::Wood
-        } else if is_key_pressed(KeyCode::Key9) {
-            active = MaterialID::Oil
-        }
 
         let (_, scroll_y) = mouse_wheel();
         if scroll_y != 0.0 {
             radius = (radius + scroll_y.signum() as i32).clamp(1, 50);
         }
 
-        if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
-            radius += 1;
-        }
-
-        // Decrease
-        if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract) {
-            radius = (radius - 1).max(1);
-        }
-
         frame_count += 1;
-
-        g.update(frame_count % 2 == 0);
-
+        if playing {
+            g.update(frame_count % 2 == 0);
+        }
         g.draw();
+
         let (rx, ry, rw, _rh) = g.compute_grid_dest_rect();
+
         let pixel_scale = rw / g.width as f32;
 
         let (mx, my) = mouse_position();
+
         draw_circle_lines(mx, my, radius as f32 * pixel_scale, 1.5, WHITE);
 
-        // if frame_count % 100 == 0 {
-        //     println!("{}", g.total_alive())
-        // }
-
+        // Stores whether you have clicked on a egui window, to prevent it drawing underneath
+        let mut egui_wants_pointer = false;
+        let (rx, ry, rw, rh) = g.compute_grid_dest_rect();
         egui_macroquad::ui(|egui_ctx| {
-            egui::Window::new("Debug").show(egui_ctx, |ui| {
-                ui.label(format!("FPS: {}", get_fps()));
-                ui.separator();
-                ui.label(format!("Total cells alive = {}", g.total_alive()));
+            egui_wants_pointer = egui_ctx.wants_pointer_input();
+            if let Some((px, py, pw, _ph)) = compute_side_panel_rect(rx, rw) {
+                egui::SidePanel::right("Materials")
+                    .exact_width(pw)
+                    .show(egui_ctx, |ui| {
+                        ui.heading("Materials");
+                        ui.separator();
 
-                let counts = g.count_by_material();
-                for id in MaterialID::iter() {
-                    if id != MaterialID::Empty {
-                        let count = counts.get(&id).copied().unwrap_or(0);
-                        ui.label(format!("{:?}: {}", id, count));
-                    }
-                }
-            });
-            egui::Window::new("Materials").show(egui_ctx, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    for id in MaterialID::iter() {
-                        let selected = active == id;
-                        if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
-                            active = id;
+                        for id in MaterialID::iter() {
+                            let selected = active == id;
+                            let c = id.properties().color;
+
+                            let color32 = egui::Color32::from_rgb(
+                                (c.r * 255.0) as u8,
+                                (c.g * 255.0) as u8,
+                                (c.b * 255.0) as u8,
+                            );
+
+                            ui.horizontal(|ui| {
+                                let (rect, _response) = ui.allocate_exact_size(
+                                    egui::vec2(16.0, 16.0),
+                                    egui::Sense::hover(),
+                                );
+                                ui.painter().rect_filled(rect, 2.0, color32);
+                                if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
+                                    active = id;
+                                }
+                            });
                         }
+                    });
+                egui::SidePanel::left("Info")
+                    .exact_width(pw)
+                    .show(egui_ctx, |ui| {
+                        ui.heading("Debug");
+                        ui.label(format!("FPS: {}", get_fps()));
+                        ui.separator();
+                        ui.label(format!("Total cells alive = {}", g.total_alive()));
+
+                        let counts = g.count_by_material();
+                        for id in MaterialID::iter() {
+                            if id != MaterialID::Empty {
+                                let count = counts.get(&id).copied().unwrap_or(0);
+                                ui.label(format!("{:?}: {}", id, count));
+                            }
+                        }
+                        ui.separator();
+                        ui.heading("Config");
+                        ui.separator();
+                        ui.label("Border Material");
+                        ui.horizontal_wrapped(|ui| {
+                            for id in BORDER_OPTIONS {
+                                let selected = g.border == id;
+                                if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
+                                    g.border = id
+                                }
+                            }
+                        });
+                    });
+
+                egui::Window::new("controls").show(egui_ctx, |ui| {
+                    let button_text = if playing { "⏸ Pause" } else { "▶ Play" };
+                    if ui.button(button_text).clicked() {
+                        playing = !playing;
                     }
                 });
-            });
+            }
         });
+        // Only accept mouse input if you are clicking on something other than the ui
+        if !egui_wants_pointer {
+            if is_mouse_button_down(MouseButton::Left) {
+                let (mx, my) = mouse_position();
+                let (gx, gy) = screen_to_grid(&mut g, mx, my);
+                g.draw_brush(gx, gy, radius, active);
+            }
+            if is_mouse_button_down(MouseButton::Right) {
+                let (mx, my) = mouse_position();
+                let (gx, gy) = screen_to_grid(&mut g, mx, my);
+                g.set_stain(
+                    gx,
+                    gy,
+                    Some(Stain {
+                        kind: StainKind::Burning,
+                        intensity: 1.0,
+                        timer: 3.0, // 3 seconds of burning
+                    }),
+                )
+            }
+        }
+
         egui_macroquad::draw();
 
         next_frame().await;
