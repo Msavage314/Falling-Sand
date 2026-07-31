@@ -466,11 +466,29 @@ async fn main() {
                 egui::SidePanel::right("Materials")
                     .exact_width(pw)
                     .show(egui_ctx, |ui| {
+                        ui.heading("Materials");
+                        ui.separator();
+
                         for id in MaterialID::iter() {
                             let selected = active == id;
-                            if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
-                                active = id;
-                            }
+                            let c = id.properties().color;
+
+                            let color32 = egui::Color32::from_rgb(
+                                (c.r * 255.0) as u8,
+                                (c.g * 255.0) as u8,
+                                (c.b * 255.0) as u8,
+                            );
+
+                            ui.horizontal(|ui| {
+                                let (rect, _response) = ui.allocate_exact_size(
+                                    egui::vec2(16.0, 16.0),
+                                    egui::Sense::hover(),
+                                );
+                                ui.painter().rect_filled(rect, 2.0, color32);
+                                if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
+                                    active = id;
+                                }
+                            });
                         }
                     });
                 egui::SidePanel::left("Info")
