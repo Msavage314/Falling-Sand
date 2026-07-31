@@ -1,6 +1,8 @@
+mod cell;
 mod materials;
 mod reaction;
 mod stains;
+
 use egui_macroquad::egui;
 use macroquad::prelude::*;
 use materials::Behavior;
@@ -142,118 +144,31 @@ impl Grid {
     }
 
     fn update_stain(&mut self, x: i32, y: i32) {
-        let Some(stain) = self.get_stain(x, y) else {
+        let Some(mut stain) = self.get_stain(x, y) else {
             return;
         };
-        let cell = self.get(x, y);
 
-        match stain.kind {
-            StainKind::Burning => {
-                for (nx, ny) in self.get_neighbors(x, y) {
-                    let neighbor_stain = self.get_stain(nx, ny);
-
-                    let flammability_multiplier = match neighbor_stain {
-                        None => 1.0,
-                        Some(s) if s.kind == StainKind::Wet => 1.0 - s.intensity,
-                        _ => continue,
-                    };
-
-                    let neighbor_material = self.get(nx, ny);
-                    let flammability =
-                        neighbor_material.properties().flammability * flammability_multiplier;
-
-                    if flammability > 0.0
-                        && macroquad::rand::gen_range(0.0, 1.0) < flammability * 0.1
-                    {
-                        self.set_stain(
-                            nx,
-                            ny,
-                            Some(Stain {
-                                kind: StainKind::Burning,
-                                intensity: 1.0,
-                                timer: 3.0, // 3 seconds of burning
-                            }),
-                        )
-                    }
-                }
-                let mut new_stain = stain;
-                new_stain.timer -= get_frame_time();
-                if new_stain.timer <= 0.0 {
-                    self.set_stain(x, y, None);
-                    self.set(x, y, MaterialID::Empty);
-                } else {
-                    self.set_stain(x, y, Some(new_stain));
-                }
+        stain.timer -= get_frame_time();
+        if stain.timer <= 0.0 {
+            self.set_stain(x, y, None);
+            if stain.kind == StainKind::Burning {
+                self.set(x, y, MaterialID::Empty);
             }
-            StainKind::Wet => {
-                if stain.intensity == 0.0 {
-                    self.set_stain(x, y, None);
-                    return;
-                }
-                for (nx, ny) in self.get_neighbors(x, y) {
-                    let neighbor_stain = self.get_stain(nx, ny);
-                    let neighbor_material = self.get(nx, ny);
-
-                    match neighbor_stain {
-                        // Douse fire upon contact
-                        Some(s) if s.kind == StainKind::Burning => {
-                            if macroquad::rand::gen_range(0.0, 1.0) < 0.01 {
-                                self.set_stain(
-                                    nx,
-                                    ny,
-                                    Some(Stain {
-                                        kind: StainKind::Wet,
-                                        intensity: (self.get_stain(x, y).unwrap().intensity - 0.1)
-                                            .clamp(0.0, 1.0),
-                                        timer: 2.0,
-                                    }),
-                                );
-                            }
-                        }
-                        None if neighbor_material != MaterialID::Empty => {
-                            if macroquad::rand::gen_range(0.0, 1.0) < 0.1 {
-                                self.set_stain(
-                                    nx,
-                                    ny,
-                                    Some(Stain {
-                                        kind: StainKind::Wet,
-                                        intensity: (self.get_stain(x, y).unwrap().intensity - 0.1)
-                                            .clamp(0.0, 1.0),
-                                        timer: 2.0,
-                                    }),
-                                )
-                            };
-                        }
-                        _ => {}
-                    }
-                }
-                let mut new_stain = stain;
-                new_stain.timer -= get_frame_time();
-                if new_stain.timer <= 0.0 {
-                    self.set_stain(x, y, None);
-                } else {
-                    self.set_stain(x, y, Some(new_stain));
-                }
-            }
+        } else {
+            self.set_stain(x, y, Some(stain));
         }
     }
-
-    fn apply_product(&mut self, x: i32, y: i32, product: Product) {
+    fn apply_product(&mut self, x: i32, y: i32, product: Product) -> bool {
         match product {
             Product::Material(mat) => {
                 self.set(x, y, mat);
+                true
             }
-            Product::Stain(kind) => {
-                self.set_stain(
-                    x,
-                    y,
-                    Some(Stain {
-                        kind,
-                        intensity: 1.0,
-                        timer: 3.0,
-                    }),
-                );
+            Product::Stain(stain) => {
+                self.set_stain(x, y, Some(stain));
+                true
             }
+            Product::NoChange => false,
         }
     }
 
@@ -276,16 +191,18 @@ impl Grid {
                 {
                     let mut changed = false;
                     if let Some(oa) = reaction.output_a {
-                        if macroquad::rand::gen_range(0.0, 1.0) < (oa.chance_fn)(cell, other) {
-                            self.apply_product(x, y, oa.result);
-                            changed = true;
-                        }
+                        changed |= self.apply_product(
+                            x,
+                            y,
+                            ((oa.apply_fn)(cell, other, stain, other_stain)),
+                        )
                     }
                     if let Some(ob) = reaction.output_b {
-                        if macroquad::rand::gen_range(0.0, 1.0) < (ob.chance_fn)(cell, other) {
-                            self.apply_product(cx, cy, ob.result);
-                            changed = true;
-                        }
+                        changed |= self.apply_product(
+                            cx,
+                            cy,
+                            (ob.apply_fn)(cell, other, stain, other_stain),
+                        );
                     }
 
                     if changed {

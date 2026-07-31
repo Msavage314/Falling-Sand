@@ -13,10 +13,13 @@ bitflags! {
         const GRANULAR = 1 <<3; // Piles diagonally when blocked
         const RISES = 1<<4;
 
-        const MELTABLE = 1<<5; // Destoryed by lava
+        const MELTABLE = 1<<5; // Destroyed by lava
         const FLAMMABLE = 1 <<6;
 
         const CORRODABLE = 1<<7;
+
+        const PERMEABLE = 1<<8; // Can be given the wet stain
+
 
         const SAND = Self::FALLS.bits() | Self::GRANULAR.bits();
         const LIQUID = Self::FALLS.bits() | Self::FLOWS.bits() | Self::GRANULAR.bits();
@@ -98,7 +101,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Slime */
         MaterialProperties {
-            behavior: Behavior::LIQUID,
+            behavior: Behavior::LIQUID | Behavior::MELTABLE,
             density: 1.3,
             color: Color::new(0.8, 0.3, 0.8, 1.0),
             flow_distance: 3,
@@ -143,7 +146,10 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Dirt */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODABLE,
+            behavior: Behavior::SAND
+                | Behavior::MELTABLE
+                | Behavior::CORRODABLE
+                | Behavior::PERMEABLE,
             density: 1.7,
             color: Color::new(0.35, 0.23, 0.16, 1.0),
             flow_distance: 10,
@@ -170,7 +176,10 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Wood */
         MaterialProperties {
-            behavior: Behavior::STATIC | Behavior::FLAMMABLE | Behavior::CORRODABLE,
+            behavior: Behavior::STATIC
+                | Behavior::FLAMMABLE
+                | Behavior::CORRODABLE
+                | Behavior::PERMEABLE,
             density: 1.7,
             color: Color::new(0.18, 0.12, 0.0, 1.0),
             flow_distance: 10,
