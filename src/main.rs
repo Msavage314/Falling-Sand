@@ -435,6 +435,7 @@ async fn main() {
     let mut frame_count = 0;
     let mut active = MaterialID::Sand;
     let mut radius = 1;
+    let mut playing = true;
     loop {
         clear_background(BLACK);
 
@@ -444,9 +445,9 @@ async fn main() {
         }
 
         frame_count += 1;
-
-        g.update(frame_count % 2 == 0);
-
+        if playing {
+            g.update(frame_count % 2 == 0);
+        }
         g.draw();
 
         let (rx, ry, rw, _rh) = g.compute_grid_dest_rect();
@@ -519,6 +520,13 @@ async fn main() {
                             }
                         });
                     });
+
+                egui::Window::new("controls").show(egui_ctx, |ui| {
+                    let button_text = if playing { "⏸ Pause" } else { "▶ Play" };
+                    if ui.button(button_text).clicked() {
+                        playing = !playing;
+                    }
+                });
             }
         });
         // Only accept mouse input if you are clicking on something other than the ui
