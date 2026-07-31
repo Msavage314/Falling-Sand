@@ -1,9 +1,7 @@
-use macroquad::prelude::rand::gen_range;
-
+use crate::cell::Cell;
 use crate::materials::Behavior;
 use crate::materials::MaterialID;
 use crate::materials::MaterialID::Empty;
-use crate::reaction::Product::NoChange;
 use crate::stains::Stain;
 use crate::stains::StainKind;
 
@@ -15,11 +13,11 @@ pub enum Reactant {
     Stain(StainKind),
 }
 impl Reactant {
-    pub fn matches(self, mat: MaterialID, stain: Option<Stain>) -> bool {
+    pub fn matches(self, cell: Cell) -> bool {
         match self {
-            Reactant::Material(id) => id == mat,
-            Reactant::Behavior(flag) => mat.properties().behavior.contains(flag),
-            Reactant::Stain(kind) => stain.is_some_and(|s| s.kind == kind),
+            Reactant::Material(id) => id == cell.material,
+            Reactant::Behavior(flag) => cell.material.properties().behavior.contains(flag),
+            Reactant::Stain(kind) => cell.stain.is_some_and(|s| s.kind == kind),
         }
     }
 }
@@ -34,12 +32,7 @@ pub enum Product {
 
 #[derive(Clone, Copy)]
 pub struct ReactionOutcome {
-    pub apply_fn: fn(
-        self_mat: MaterialID,
-        other_mat: MaterialID,
-        self_stain: Option<Stain>,
-        other_stain: Option<Stain>,
-    ) -> Product,
+    pub apply_fn: fn(a: Cell, b: Cell) -> Product,
 }
 
 pub struct Reaction {
@@ -58,10 +51,10 @@ pub static REACTIONS: &[Reaction] = &[
         b: Reactant::Material(MaterialID::Water),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| Product::Material(MaterialID::SaltWater),
+            apply_fn: |_a, _b| Product::Material(MaterialID::SaltWater),
         }),
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 if macroquad::rand::gen_range(0.0, 1.0) < 0.5 {
                     Product::Material(MaterialID::Water)
                 } else {
@@ -76,7 +69,7 @@ pub static REACTIONS: &[Reaction] = &[
         b: Reactant::Material(MaterialID::Water),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 if macroquad::rand::gen_range(0.0, 1.0) < 0.5 {
                     Product::Material(MaterialID::Stone)
                 } else {
@@ -85,7 +78,7 @@ pub static REACTIONS: &[Reaction] = &[
             },
         }),
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| Product::Material(MaterialID::Steam),
+            apply_fn: |_a, _b| Product::Material(MaterialID::Steam),
         }),
 
         chance: 0.5,
@@ -95,7 +88,7 @@ pub static REACTIONS: &[Reaction] = &[
         b: Reactant::Material(MaterialID::Steam),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 if macroquad::rand::gen_range(0.0, 1.0) < 0.1 {
                     Product::Material(MaterialID::Water)
                 } else {
@@ -104,7 +97,7 @@ pub static REACTIONS: &[Reaction] = &[
             },
         }),
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| Product::Material(MaterialID::Empty),
+            apply_fn: |_a, _b| Product::Material(MaterialID::Empty),
         }),
 
         chance: 0.01,
@@ -114,8 +107,8 @@ pub static REACTIONS: &[Reaction] = &[
         b: Reactant::Material(MaterialID::Lava),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |a, _b, _sa, _sb| {
-                if macroquad::rand::gen_range(0.0, 1.0) < a.properties().lava_resistance {
+            apply_fn: |a, _b| {
+                if macroquad::rand::gen_range(0.0, 1.0) < a.material.properties().lava_resistance {
                     Product::Material(MaterialID::Lava)
                 } else {
                     Product::NoChange
@@ -123,7 +116,7 @@ pub static REACTIONS: &[Reaction] = &[
             },
         }),
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 if macroquad::rand::gen_range(0.0, 1.0) < 0.2 {
                     Product::Material(MaterialID::Empty)
                 } else {
@@ -138,8 +131,8 @@ pub static REACTIONS: &[Reaction] = &[
         b: Reactant::Material(MaterialID::Lava),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |a, _b, _sa, _sb| {
-                if macroquad::rand::gen_range(0.0, 1.0) < a.properties().flammability {
+            apply_fn: |a, _b| {
+                if macroquad::rand::gen_range(0.0, 1.0) < a.material.properties().flammability {
                     Product::Stain(Stain {
                         kind: StainKind::Burning,
                         intensity: 1.0,
@@ -158,10 +151,10 @@ pub static REACTIONS: &[Reaction] = &[
         b: Reactant::Material(MaterialID::Empty),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| Product::Material(MaterialID::Empty),
+            apply_fn: |_a, _b| Product::Material(MaterialID::Empty),
         }),
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 if macroquad::rand::gen_range(0.0, 1.0) < 0.1 {
                     Product::Material(MaterialID::Smoke)
                 } else {
@@ -177,7 +170,7 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 if macroquad::rand::gen_range(0.0, 1.0) < 0.1 {
                     Product::Material(MaterialID::Fire)
                 } else {
@@ -193,7 +186,7 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| Product::Material(MaterialID::Empty),
+            apply_fn: |_a, _b| Product::Material(MaterialID::Empty),
         }),
         chance: 0.01,
     },
@@ -203,7 +196,7 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 Product::Stain(Stain {
                     kind: StainKind::Burning,
                     intensity: 1.0,
@@ -218,17 +211,16 @@ pub static REACTIONS: &[Reaction] = &[
         b: Reactant::Behavior(Behavior::CORRODABLE),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 if macroquad::rand::gen_range(0.0, 1.0) < 0.1 {
                     Product::Material(Empty)
                 } else {
                     Product::NoChange
                 }
-            }, // chance_fn: |a, b| 0.1,
-               // result: Product::Material(MaterialID::Empty),
+            },
         }),
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| Product::Material(Empty),
+            apply_fn: |_a, _b| Product::Material(Empty),
         }),
         chance: 0.1,
     },
@@ -238,7 +230,7 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, _sb| {
+            apply_fn: |_a, _b| {
                 Product::Stain(Stain {
                     kind: StainKind::Wet,
                     intensity: 1.0,
@@ -254,8 +246,8 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, _sa, sb| {
-                let existing = sb.map(|s| s.intensity).unwrap_or(0.0);
+            apply_fn: |_a, b| {
+                let existing = b.stain.map(|s| s.intensity).unwrap_or(0.0);
                 Product::Stain(Stain {
                     kind: StainKind::Wet,
                     intensity: (existing + 0.3).min(1.0),
@@ -271,16 +263,17 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, b, _sa, sb| {
-                if sb.is_some_and(|s| s.kind == StainKind::Burning) {
+            apply_fn: |_a, b| {
+                if b.stain.is_some_and(|s| s.kind == StainKind::Burning) {
                     return Product::NoChange;
                 }
-                let wetness = sb
+                let wetness = b
+                    .stain
                     .filter(|s| s.kind == StainKind::Wet)
                     .map(|s| s.intensity)
                     .unwrap_or(0.0);
 
-                let flammability = b.properties().flammability * (1.0 - wetness);
+                let flammability = b.material.properties().flammability * (1.0 - wetness);
 
                 if flammability > 0.0 && macroquad::rand::gen_range(0.0, 1.0) < flammability * 0.1 {
                     Product::Stain(Stain {
@@ -301,8 +294,8 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, sa, _sb| {
-                let intensity = (sa.map(|s| s.intensity).unwrap_or(1.0) - 0.1).clamp(0.0, 0.1);
+            apply_fn: |a, _b| {
+                let intensity = (a.stain.map(|s| s.intensity).unwrap_or(1.0) - 0.1).clamp(0.0, 0.1);
                 if intensity <= 0.0 {
                     return Product::NoChange;
                 }
@@ -321,8 +314,8 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b, sa, sb| {
-                let intensity = sa.map(|s| s.intensity).unwrap_or(1.0) - 0.1;
+            apply_fn: |a, _b| {
+                let intensity = a.stain.map(|s| s.intensity).unwrap_or(1.0) - 0.1;
                 if intensity <= 0.0 {
                     return Product::NoChange;
                 }

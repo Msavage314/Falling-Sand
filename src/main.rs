@@ -3,6 +3,7 @@ mod materials;
 mod reaction;
 mod stains;
 
+use cell::Cell;
 use egui_macroquad::egui;
 use macroquad::prelude::*;
 use materials::Behavior;
@@ -17,8 +18,7 @@ use strum::IntoEnumIterator;
 pub struct Grid {
     pub width: usize,
     pub height: usize,
-    cells: Vec<MaterialID>,
-    stains: Vec<Option<Stain>>,
+    cells: Vec<Cell>,
     image: Image,
     texture: Texture2D,
     updated: Vec<bool>,
@@ -32,69 +32,79 @@ impl Grid {
         return Grid {
             width: width,
             height: height,
-            cells: vec![MaterialID::Empty; width * height],
-            stains: vec![None; width * height],
+            cells: vec![
+                Cell {
+                    material: MaterialID::Empty,
+                    stain: None
+                };
+                width * height
+            ],
             image,
             texture,
             updated: vec![false; width * height],
         };
     }
 
-    pub fn get(&self, x: i32, y: i32) -> MaterialID {
+    pub fn get(&self, x: i32, y: i32) -> Cell {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
-            return MaterialID::DenseRock;
+            return Cell {
+                material: MaterialID::DenseRock,
+                stain: None,
+            };
         }
 
         return self.cells[y as usize * self.width + x as usize];
     }
 
-    pub fn set(&mut self, x: i32, y: i32, value: MaterialID) {
+    pub fn set(&mut self, x: i32, y: i32, value: Cell) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
         self.cells[y as usize * self.width + x as usize] = value
     }
-
-    pub fn get_stain(&self, x: i32, y: i32) -> Option<Stain> {
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
-            return None;
-        }
-        return self.stains[y as usize * self.width + x as usize];
-    }
-
-    pub fn set_stain(&mut self, x: i32, y: i32, value: Option<Stain>) {
+    pub fn set_material(&mut self, x: i32, y: i32, material: MaterialID) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
-        self.stains[y as usize * self.width + x as usize] = value
+        self.cells[y as usize * self.width + x as usize].material = material;
     }
 
-    fn can_density_swap(&mut self, cell_a: MaterialID, cell_b: MaterialID) -> bool {
-        if cell_a.properties().behavior.contains(Behavior::STATIC)
-            || cell_b.properties().behavior.contains(Behavior::STATIC)
+    pub fn set_stain(&mut self, x: i32, y: i32, stain: Option<Stain>) {
+        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+            return;
+        }
+        self.cells[y as usize * self.width + x as usize].stain = stain;
+    }
+
+    fn can_density_swap(&mut self, cell_a: Cell, cell_b: Cell) -> bool {
+        let mat_a = cell_a.material;
+        let mat_b = cell_b.material;
+
+        if mat_a.properties().behavior.contains(Behavior::STATIC)
+            || mat_b.properties().behavior.contains(Behavior::STATIC)
         {
             return false;
         }
-        if cell_a != MaterialID::Empty && cell_b != MaterialID::Empty {
-            if !(cell_a.properties().behavior.contains(Behavior::FLOWS))
-                && !(cell_b.properties().behavior.contains(Behavior::FLOWS))
+        if mat_a != MaterialID::Empty && mat_b != MaterialID::Empty {
+            if !(mat_a.properties().behavior.contains(Behavior::FLOWS))
+                && !(mat_b.properties().behavior.contains(Behavior::FLOWS))
             {
                 return false;
             }
         }
 
-        let diff = cell_a.properties().density - cell_b.properties().density;
+        let diff = mat_a.properties().density - mat_b.properties().density;
 
         if diff <= 0.0 {
             return false;
         }
 
-        let chance = diff / cell_a.properties().density.clamp(0.0, 1.0);
+        let chance = diff / mat_a.properties().density.clamp(0.0, 1.0);
 
         return macroquad::rand::gen_range(0.0, 1.0) < chance;
     }
 
-    fn try_flow(&mut self, cell: MaterialID, x: i32, y: i32, dir: i32, max_dist: i32) -> bool {
+    fn try_flow(&mut self, cell: Cell, x: i32, y: i32, dir: i32, max_dist: i32) -> bool {
         let mut target = None;
 
         for d in 1..=max_dist {
@@ -126,13 +136,9 @@ impl Grid {
     fn swap_cells(&mut self, x1: i32, y1: i32, x2: i32, y2: i32) {
         let a = self.get(x1, y1);
         let b = self.get(x2, y2);
-        let stain_a = self.get_stain(x1, y1);
-        let stain_b = self.get_stain(x2, y2);
 
         self.set(x1, y1, b);
         self.set(x2, y2, a);
-        self.set_stain(x1, y1, stain_b);
-        self.set_stain(x2, y2, stain_a);
 
         self.mark_updated(x1, y1);
         self.mark_updated(x2, y2);
@@ -144,7 +150,7 @@ impl Grid {
     }
 
     fn update_stain(&mut self, x: i32, y: i32) {
-        let Some(mut stain) = self.get_stain(x, y) else {
+        let Some(mut stain) = self.get(x, y).stain else {
             return;
         };
 
@@ -152,7 +158,7 @@ impl Grid {
         if stain.timer <= 0.0 {
             self.set_stain(x, y, None);
             if stain.kind == StainKind::Burning {
-                self.set(x, y, MaterialID::Empty);
+                self.set_material(x, y, MaterialID::Empty);
             }
         } else {
             self.set_stain(x, y, Some(stain));
@@ -161,7 +167,7 @@ impl Grid {
     fn apply_product(&mut self, x: i32, y: i32, product: Product) -> bool {
         match product {
             Product::Material(mat) => {
-                self.set(x, y, mat);
+                self.set_material(x, y, mat);
                 true
             }
             Product::Stain(stain) => {
@@ -178,31 +184,23 @@ impl Grid {
             return;
         }
         let cell = self.get(x, y);
-        let stain = self.get_stain(x, y);
-        let properties = cell.properties();
+        let stain = cell.stain;
+        let properties = cell.material.properties();
 
         for (cx, cy) in self.get_neighbors(x, y) {
             let other = self.get(cx, cy);
-            let other_stain = self.get_stain(cx, cy);
+            let other_stain = other.stain;
             for reaction in REACTIONS {
-                if reaction.a.matches(cell, stain)
-                    && reaction.b.matches(other, other_stain)
+                if reaction.a.matches(cell)
+                    && reaction.b.matches(other)
                     && macroquad::rand::gen_range(0.0, 1.0) < reaction.chance
                 {
                     let mut changed = false;
                     if let Some(oa) = reaction.output_a {
-                        changed |= self.apply_product(
-                            x,
-                            y,
-                            ((oa.apply_fn)(cell, other, stain, other_stain)),
-                        )
+                        changed |= self.apply_product(x, y, ((oa.apply_fn)(cell, other)))
                     }
                     if let Some(ob) = reaction.output_b {
-                        changed |= self.apply_product(
-                            cx,
-                            cy,
-                            (ob.apply_fn)(cell, other, stain, other_stain),
-                        );
+                        changed |= self.apply_product(cx, cy, (ob.apply_fn)(cell, other));
                     }
 
                     if changed {
@@ -325,8 +323,9 @@ impl Grid {
         for y in 0..self.height {
             for x in 0..self.width {
                 let id = self.cells[y * self.width + x];
-                let base_color = id.properties().color;
-                let final_color = match self.get_stain(x as i32, y as i32) {
+
+                let base_color = id.material.properties().color;
+                let final_color = match id.stain {
                     Some(stain) if stain.kind == StainKind::Burning => {
                         // flicker between orange/red based on intensity, blended with base
                         Color::new(
@@ -376,7 +375,14 @@ impl Grid {
         for y in -radius..=radius {
             for x in -radius..=radius {
                 if x * x + y * y <= r2 {
-                    self.set(cx + x, cy + y, material)
+                    self.set(
+                        cx + x,
+                        cy + y,
+                        Cell {
+                            material,
+                            stain: None,
+                        },
+                    )
                 }
             }
         }
@@ -385,7 +391,7 @@ impl Grid {
     pub fn total_alive(&mut self) -> i32 {
         let mut count = 0;
         for cell in &self.cells {
-            if *cell != MaterialID::Empty {
+            if (*cell).material != MaterialID::Empty {
                 count += 1;
             }
         }
@@ -395,8 +401,8 @@ impl Grid {
     pub fn count_by_material(&mut self) -> HashMap<MaterialID, i32> {
         let mut counts = HashMap::new();
         for cell in &self.cells {
-            if *cell != MaterialID::Empty {
-                *counts.entry(*cell).or_insert(0) += 1
+            if cell.material != MaterialID::Empty {
+                *counts.entry(cell.material).or_insert(0) += 1
             }
         }
         return counts;
@@ -413,7 +419,6 @@ fn screen_to_grid(grid: &mut Grid, screen_x: f32, screen_y: f32) -> (i32, i32) {
 async fn main() {
     let mut g = Grid::new(200, 150);
     let mut frame_count = 0;
-    g.set(50, 0, MaterialID::Sand);
     let mut active = MaterialID::Sand;
     let mut radius = 1;
     loop {
