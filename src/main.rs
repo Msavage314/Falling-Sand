@@ -424,58 +424,9 @@ async fn main() {
     loop {
         clear_background(BLACK);
 
-        if is_mouse_button_down(MouseButton::Left) {
-            let (mx, my) = mouse_position();
-            let (gx, gy) = screen_to_grid(&mut g, mx, my);
-            g.draw_brush(gx, gy, radius, active);
-        }
-        if is_mouse_button_down(MouseButton::Right) {
-            let (mx, my) = mouse_position();
-            let (gx, gy) = screen_to_grid(&mut g, mx, my);
-            g.set_stain(
-                gx,
-                gy,
-                Some(Stain {
-                    kind: StainKind::Burning,
-                    intensity: 1.0,
-                    timer: 3.0, // 3 seconds of burning
-                }),
-            )
-        }
-        if is_key_pressed(KeyCode::Key0) {
-            active = MaterialID::Empty
-        } else if is_key_pressed(KeyCode::Key1) {
-            active = MaterialID::Sand
-        } else if is_key_pressed(KeyCode::Key2) {
-            active = MaterialID::Stone
-        } else if is_key_pressed(KeyCode::Key3) {
-            active = MaterialID::Water
-        } else if is_key_pressed(KeyCode::Key4) {
-            active = MaterialID::Slime
-        } else if is_key_pressed(KeyCode::Key5) {
-            active = MaterialID::Acid
-        } else if is_key_pressed(KeyCode::Key6) {
-            active = MaterialID::Lava
-        } else if is_key_pressed(KeyCode::Key7) {
-            active = MaterialID::DenseRock
-        } else if is_key_pressed(KeyCode::Key8) {
-            active = MaterialID::Wood
-        } else if is_key_pressed(KeyCode::Key9) {
-            active = MaterialID::Oil
-        }
-
         let (_, scroll_y) = mouse_wheel();
         if scroll_y != 0.0 {
             radius = (radius + scroll_y.signum() as i32).clamp(1, 50);
-        }
-
-        if is_key_pressed(KeyCode::Equal) || is_key_pressed(KeyCode::KpAdd) {
-            radius += 1;
-        }
-
-        // Decrease
-        if is_key_pressed(KeyCode::Minus) || is_key_pressed(KeyCode::KpSubtract) {
-            radius = (radius - 1).max(1);
         }
 
         frame_count += 1;
@@ -483,17 +434,20 @@ async fn main() {
         g.update(frame_count % 2 == 0);
 
         g.draw();
+
         let (rx, ry, rw, _rh) = g.compute_grid_dest_rect();
+
         let pixel_scale = rw / g.width as f32;
 
         let (mx, my) = mouse_position();
+
         draw_circle_lines(mx, my, radius as f32 * pixel_scale, 1.5, WHITE);
 
-        // if frame_count % 100 == 0 {
-        //     println!("{}", g.total_alive())
-        // }
+        // Stores whether you have clicked on a egui window, to prevent it drawing underneath
+        let mut egui_wants_pointer = false;
 
         egui_macroquad::ui(|egui_ctx| {
+            egui_wants_pointer = egui_ctx.wants_pointer_input();
             egui::Window::new("Debug").show(egui_ctx, |ui| {
                 ui.label(format!("FPS: {}", get_fps()));
                 ui.separator();
@@ -518,6 +472,28 @@ async fn main() {
                 });
             });
         });
+        // Only accept mouse input if you are clicking on something other than the ui
+        if !egui_wants_pointer {
+            if is_mouse_button_down(MouseButton::Left) {
+                let (mx, my) = mouse_position();
+                let (gx, gy) = screen_to_grid(&mut g, mx, my);
+                g.draw_brush(gx, gy, radius, active);
+            }
+            if is_mouse_button_down(MouseButton::Right) {
+                let (mx, my) = mouse_position();
+                let (gx, gy) = screen_to_grid(&mut g, mx, my);
+                g.set_stain(
+                    gx,
+                    gy,
+                    Some(Stain {
+                        kind: StainKind::Burning,
+                        intensity: 1.0,
+                        timer: 3.0, // 3 seconds of burning
+                    }),
+                )
+            }
+        }
+
         egui_macroquad::draw();
 
         next_frame().await;
