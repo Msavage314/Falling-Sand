@@ -15,6 +15,8 @@ use stains::StainKind;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
+const BORDER_OPTIONS: [MaterialID; 2] = [MaterialID::Empty, MaterialID::DenseRock];
+
 pub struct Grid {
     pub width: usize,
     pub height: usize,
@@ -22,9 +24,10 @@ pub struct Grid {
     image: Image,
     texture: Texture2D,
     updated: Vec<bool>,
+    border: MaterialID, // The material constituiting the edge of the simulation
 }
 impl Grid {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize, border: MaterialID) -> Self {
         let image = Image::gen_image_color(width as u16, height as u16, BLACK);
         let texture = Texture2D::from_image(&image);
         texture.set_filter(FilterMode::Nearest);
@@ -42,13 +45,14 @@ impl Grid {
             image,
             texture,
             updated: vec![false; width * height],
+            border,
         };
     }
 
     pub fn get(&self, x: i32, y: i32) -> Cell {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return Cell {
-                material: MaterialID::DenseRock,
+                material: self.border,
                 stain: None,
             };
         }
@@ -417,7 +421,7 @@ fn screen_to_grid(grid: &mut Grid, screen_x: f32, screen_y: f32) -> (i32, i32) {
 
 #[macroquad::main("Falling Sand")]
 async fn main() {
-    let mut g = Grid::new(200, 150);
+    let mut g = Grid::new(200, 150, MaterialID::DenseRock);
     let mut frame_count = 0;
     let mut active = MaterialID::Sand;
     let mut radius = 1;
@@ -467,6 +471,16 @@ async fn main() {
                         let selected = active == id;
                         if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
                             active = id;
+                        }
+                    }
+                });
+            });
+            egui::Window::new("Config").show(egui_ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    for id in BORDER_OPTIONS {
+                        let selected = g.border == id;
+                        if ui.selectable_label(selected, format!("{:?}", id)).clicked() {
+                            g.border = id
                         }
                     }
                 });
