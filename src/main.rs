@@ -436,6 +436,7 @@ async fn main() {
     let mut active = MaterialID::Sand;
     let mut radius = 1;
     let mut playing = true;
+    let mut hovered = MaterialID::Empty;
     loop {
         clear_background(BLACK);
 
@@ -527,6 +528,12 @@ async fn main() {
                         playing = !playing;
                     }
                 });
+                egui::Window::new("Current").show(egui_ctx, |ui| {
+                    let (mx, my) = mouse_position();
+                    let (gx, gy) = screen_to_grid(&mut g, mx, my);
+                    ui.label(format!("Current Material: {:?}", g.get(gx, gy).material));
+                    ui.label(format!("Current Stain: {:?}", g.get(gx, gy).stain));
+                });
             }
         });
         // Only accept mouse input if you are clicking on something other than the ui
@@ -549,6 +556,9 @@ async fn main() {
                     }),
                 )
             }
+        }
+        if is_key_pressed(KeyCode::Space) {
+            playing = !playing
         }
 
         egui_macroquad::draw();
