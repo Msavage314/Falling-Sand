@@ -1,6 +1,7 @@
 mod cell;
 mod materials;
 mod reaction;
+mod rng;
 mod stains;
 
 use cell::Cell;
@@ -15,16 +16,24 @@ use stains::StainKind;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
+/// Materials which the user is allowed to pick as the edge of the simulation
+/// `DenseRock` results in sand stopping at the edge, whereas `Empty` makes it fall offscreen
 const BORDER_OPTIONS: [MaterialID; 2] = [MaterialID::Empty, MaterialID::DenseRock];
 
+/// Owns the simulation state and rendering surface for the falling-sand grid.
+///
+/// Cells are stored in a flat row `Vec<Cell>` rather than a 2d array for increased performance
 pub struct Grid {
     pub width: usize,
     pub height: usize,
     cells: Vec<Cell>,
     image: Image,
     texture: Texture2D,
+    /// Tracks which cells have already been touched this tick, so a cell moved
+    /// by an earlier update will not be updated again
     updated: Vec<bool>,
-    border: MaterialID, // The material constituiting the edge of the simulation
+    /// Material returned for any coordinate outside the grid bounds.
+    border: MaterialID,
 }
 impl Grid {
     pub fn new(width: usize, height: usize, border: MaterialID) -> Self {
@@ -105,7 +114,7 @@ impl Grid {
 
         let chance = diff / mat_a.properties().density.clamp(0.0, 1.0);
 
-        return macroquad::rand::gen_range(0.0, 1.0) < chance;
+        return rng::chance(chance);
     }
 
     fn try_flow(&mut self, cell: Cell, x: i32, y: i32, dir: i32, max_dist: i32) -> bool {
@@ -197,7 +206,7 @@ impl Grid {
             for reaction in REACTIONS {
                 if reaction.a.matches(cell)
                     && reaction.b.matches(other)
-                    && macroquad::rand::gen_range(0.0, 1.0) < reaction.chance
+                    && rng::chance(reaction.chance)
                 {
                     let mut changed = false;
                     if let Some(oa) = reaction.output_a {
@@ -229,7 +238,7 @@ impl Grid {
             }
         }
         if properties.behavior.contains(Behavior::GRANULAR) {
-            if macroquad::rand::gen_range(0, 2) == 1 {
+            if rng::chance(0.5) {
                 let other = self.get(x + 1, y + 1);
                 if self.can_density_swap(cell, other) {
                     self.swap_cells(x, y, x + 1, y + 1);
@@ -255,7 +264,7 @@ impl Grid {
         }
         if properties.behavior.contains(Behavior::FLOWS) {
             let flow = macroquad::rand::gen_range(0, properties.flow_distance * 2) as i32;
-            let left_first = macroquad::rand::gen_range(0, 2) == 0;
+            let left_first = rng::chance(0.5);
 
             if left_first {
                 if self.try_flow(cell, x, y, -1, flow) {

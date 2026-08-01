@@ -172,7 +172,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
             color: Color::new(0.14, 0.1, 0.05, 1.0),
             flow_distance: 3,
             lava_resistance: 0.0,
-            flammability: 1.0,
+            flammability: 0.1,
         },
         /* Wood */
         MaterialProperties {
@@ -184,7 +184,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
             color: Color::new(0.18, 0.12, 0.0, 1.0),
             flow_distance: 10,
             lava_resistance: 1.0,
-            flammability: 0.5,
+            flammability: 0.05,
         },
         /* Fire */
         MaterialProperties {
