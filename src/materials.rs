@@ -16,7 +16,7 @@ bitflags! {
         const MELTABLE = 1<<5; // Destroyed by lava
         const FLAMMABLE = 1 <<6;
 
-        const CORRODABLE = 1<<7;
+        const CORRODIBLE = 1<<7;
 
         const PERMEABLE = 1<<8; // Can be given the wet stain
 
@@ -74,7 +74,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Sand  */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODABLE,
+            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.5,
             color: Color::new(0.96, 0.82, 0.45, 1.0),
             flow_distance: 0,
@@ -83,7 +83,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Stone */
         MaterialProperties {
-            behavior: Behavior::STATIC | Behavior::MELTABLE | Behavior::CORRODABLE,
+            behavior: Behavior::STATIC | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 3.0,
             color: Color::new(0.5, 0.5, 0.5, 1.0),
             flow_distance: 0,
@@ -92,7 +92,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Water */
         MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODABLE,
+            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
             density: 1.0,
             color: Color::new(0.1, 0.45, 0.82, 1.0),
             flow_distance: 5,
@@ -110,16 +110,16 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Salt */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODABLE,
+            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.5,
             color: Color::new(0.9, 0.9, 1.0, 1.0),
-            flow_distance: 3,
+            flow_distance: 0,
             lava_resistance: 0.1,
             flammability: 0.0,
         },
         /* Salt Water */
         MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODABLE,
+            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
             density: 1.1,
             color: Color::new(0.43, 0.77, 0.8, 1.0),
             flow_distance: 3,
@@ -128,7 +128,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Lava */
         MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODABLE,
+            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
             density: 1.1,
             color: Color::new(0.95, 0.7, 0.0, 1.0),
             flow_distance: 1,
@@ -137,10 +137,10 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Steam */
         MaterialProperties {
-            behavior: Behavior::GAS | Behavior::CORRODABLE,
+            behavior: Behavior::GAS | Behavior::CORRODIBLE,
             density: 0.1,
             color: Color::new(0.9, 0.9, 0.9, 1.0),
-            flow_distance: 10,
+            flow_distance: 6,
             lava_resistance: 1.0,
             flammability: 0.0,
         },
@@ -148,7 +148,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         MaterialProperties {
             behavior: Behavior::SAND
                 | Behavior::MELTABLE
-                | Behavior::CORRODABLE
+                | Behavior::CORRODIBLE
                 | Behavior::PERMEABLE,
             density: 1.7,
             color: Color::new(0.35, 0.23, 0.16, 1.0),
@@ -158,7 +158,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Snow */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODABLE,
+            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.7,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
             flow_distance: 10,
@@ -167,24 +167,24 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Oil */
         MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::FLAMMABLE | Behavior::CORRODABLE,
+            behavior: Behavior::LIQUID | Behavior::FLAMMABLE | Behavior::CORRODIBLE,
             density: 0.9,
             color: Color::new(0.14, 0.1, 0.05, 1.0),
             flow_distance: 3,
             lava_resistance: 0.0,
-            flammability: 1.0,
+            flammability: 0.1,
         },
         /* Wood */
         MaterialProperties {
             behavior: Behavior::STATIC
                 | Behavior::FLAMMABLE
-                | Behavior::CORRODABLE
+                | Behavior::CORRODIBLE
                 | Behavior::PERMEABLE,
             density: 1.7,
             color: Color::new(0.18, 0.12, 0.0, 1.0),
             flow_distance: 10,
             lava_resistance: 1.0,
-            flammability: 0.5,
+            flammability: 0.05,
         },
         /* Fire */
         MaterialProperties {
@@ -197,7 +197,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
         },
         /* Smoke */
         MaterialProperties {
-            behavior: Behavior::GAS | Behavior::CORRODABLE,
+            behavior: Behavior::GAS | Behavior::CORRODIBLE,
             density: 0.1,
             color: Color::new(0.4, 0.4, 0.4, 1.0),
             flow_distance: 2,
