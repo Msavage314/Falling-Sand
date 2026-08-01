@@ -91,7 +91,11 @@ impl Grid {
         self.cells[y as usize * self.width + x as usize] = Cell {
             material,
             stain: None,
-            color: materials::vary_color(material.properties().color, 0.05),
+            color: if material == MaterialID::Empty {
+                materials::vary_color(material.properties().color, 0.05)
+            } else {
+                material.properties().color
+            },
         }
     }
 

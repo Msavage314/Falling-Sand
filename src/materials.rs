@@ -278,3 +278,9 @@ pub fn vary_color(base: Color, amount: f32) -> Color {
         base.a,
     )
 }
+
+pub enum ColorSource {
+    Solid,
+    Noise { amount: f32 },
+    Texture(fn(x: i32, y: i32, base: Color) -> Color),
+}
