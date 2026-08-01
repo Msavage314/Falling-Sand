@@ -209,7 +209,7 @@ pub static REACTIONS: &[Reaction] = &[
     },
     Reaction {
         a: Reactant::Material(MaterialID::Acid),
-        b: Reactant::Behavior(Behavior::CORRODABLE),
+        b: Reactant::Behavior(Behavior::CORRODIBLE),
 
         output_a: Some(ReactionOutcome {
             apply_fn: |_a, _b| {
