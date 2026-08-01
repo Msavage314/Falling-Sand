@@ -2,6 +2,7 @@ use crate::cell::Cell;
 use crate::materials::Behavior;
 use crate::materials::MaterialID;
 use crate::materials::MaterialID::Empty;
+use crate::materials::MaterialID::FlammableGas;
 use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
@@ -136,8 +137,8 @@ pub static REACTIONS: &[Reaction] = &[
                 if rng::chance(a.material.properties().flammability) {
                     Product::Stain(Stain {
                         kind: StainKind::Burning,
-                        intensity: 1.0,
-                        timer: 3.0,
+                        intensity: a.material.properties().burn_intensity,
+                        timer: a.material.properties().burn_time,
                     })
                 } else {
                     Product::NoChange
@@ -207,31 +208,37 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b| {
+            apply_fn: |_a, b| {
                 Product::Stain(Stain {
                     kind: StainKind::Burning,
-                    intensity: 1.0,
-                    timer: 3.0,
+                    intensity: b.material.properties().burn_intensity,
+                    timer: b.material.properties().burn_time,
                 })
             },
         }),
         chance: 0.01,
     },
     Reaction {
-        a: Reactant::Material(MaterialID::Acid),
-        b: Reactant::Behavior(Behavior::CORRODIBLE),
+        a: Reactant::Behavior(Behavior::CORRODIBLE),
+        b: Reactant::Material(MaterialID::Acid),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |_a, _b| {
-                if rng::chance(0.1) {
-                    Product::Material(Empty)
+            apply_fn: |a, _b| {
+                if rng::chance(a.material.properties().acid_resistance) {
+                    Product::Material(FlammableGas)
                 } else {
                     Product::NoChange
                 }
             },
         }),
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b| Product::Material(MaterialID::FlammableGas),
+            apply_fn: |_a, _b| {
+                if rng::chance(0.2) {
+                    Product::Material(MaterialID::Empty)
+                } else {
+                    Product::NoChange
+                }
+            },
         }),
         chance: 0.3,
     },
@@ -262,7 +269,7 @@ pub static REACTIONS: &[Reaction] = &[
                 Product::Stain(Stain {
                     kind: StainKind::Wet,
                     intensity: (existing + 0.3).min(1.0),
-                    timer: 2.0,
+                    timer: 10.0,
                 })
             },
         }),
@@ -289,8 +296,8 @@ pub static REACTIONS: &[Reaction] = &[
                 if flammability > 0.0 && rng::chance(flammability) {
                     Product::Stain(Stain {
                         kind: StainKind::Burning,
-                        intensity: 1.0,
-                        timer: 3.0,
+                        intensity: b.material.properties().burn_intensity,
+                        timer: b.material.properties().burn_time,
                     })
                 } else {
                     Product::NoChange
@@ -326,7 +333,7 @@ pub static REACTIONS: &[Reaction] = &[
         output_a: None,
         output_b: Some(ReactionOutcome {
             apply_fn: |a, _b| {
-                let intensity = a.stain.map(|s| s.intensity).unwrap_or(1.0) - 0.1;
+                let intensity = a.stain.map(|s| s.intensity).unwrap_or(1.0) - 0.05;
                 if intensity <= 0.0 {
                     return Product::NoChange;
                 }
