@@ -89,7 +89,7 @@ impl Grid {
         self.cells[y as usize * self.width + x as usize].stain = stain;
     }
 
-    fn can_density_swap(&mut self, cell_a: Cell, cell_b: Cell) -> bool {
+    fn can_density_swap(&mut self, cell_a: Cell, cell_b: Cell, falling: bool) -> bool {
         let mat_a = cell_a.material;
         let mat_b = cell_b.material;
 
@@ -108,23 +108,40 @@ impl Grid {
 
         let diff = mat_a.properties().density - mat_b.properties().density;
 
-        if diff <= 0.0 {
+        let ok = if falling { diff > 0.0 } else { diff < 0.0 };
+        if !ok {
             return false;
         }
-
-        let chance = diff / mat_a.properties().density.clamp(0.0, 1.0);
+        // Moving into empty space is pure gravity/buoyancy against nothing — always succeeds.
+        if mat_b == MaterialID::Empty {
+            return true;
+        }
+        let denom = mat_a
+            .properties()
+            .density
+            .max(mat_b.properties().density)
+            .max(0.01);
+        let chance = diff.abs() / denom;
 
         return rng::chance(chance);
     }
 
-    fn try_flow(&mut self, cell: Cell, x: i32, y: i32, dir: i32, max_dist: i32) -> bool {
+    fn try_flow(
+        &mut self,
+        cell: Cell,
+        x: i32,
+        y: i32,
+        dir: i32,
+        max_dist: i32,
+        falling: bool,
+    ) -> bool {
         let mut target = None;
 
         for d in 1..=max_dist {
             let nx = x + dir * d;
             let other = self.get(nx, y);
 
-            if self.can_density_swap(cell, other) {
+            if self.can_density_swap(cell, other, falling) {
                 target = Some(nx);
             } else {
                 break;
@@ -226,13 +243,13 @@ impl Grid {
         }
 
         if properties.behavior.contains(Behavior::FALLS) {
-            if self.can_density_swap(self.get(x, y), self.get(x, y + 1)) {
+            if self.can_density_swap(self.get(x, y), self.get(x, y + 1), true) {
                 self.swap_cells(x, y, x, y + 1);
                 return;
             }
         }
         if properties.behavior.contains(Behavior::RISES) {
-            if self.can_density_swap(self.get(x, y), self.get(x, y - 1)) {
+            if self.can_density_swap(self.get(x, y), self.get(x, y - 1), false) {
                 self.swap_cells(x, y, x, y - 1);
                 return;
             }
@@ -240,23 +257,23 @@ impl Grid {
         if properties.behavior.contains(Behavior::GRANULAR) {
             if rng::chance(0.5) {
                 let other = self.get(x + 1, y + 1);
-                if self.can_density_swap(cell, other) {
+                if self.can_density_swap(cell, other, true) {
                     self.swap_cells(x, y, x + 1, y + 1);
                     return;
                 }
                 let other = self.get(x - 1, y + 1);
-                if self.can_density_swap(cell, other) {
+                if self.can_density_swap(cell, other, true) {
                     self.swap_cells(x, y, x - 1, y + 1);
                     return;
                 }
             } else {
                 let other = self.get(x - 1, y + 1);
-                if self.can_density_swap(cell, other) {
+                if self.can_density_swap(cell, other, true) {
                     self.swap_cells(x, y, x - 1, y + 1);
                     return;
                 }
                 let other = self.get(x + 1, y + 1);
-                if self.can_density_swap(cell, other) {
+                if self.can_density_swap(cell, other, true) {
                     self.swap_cells(x, y, x + 1, y + 1);
                     return;
                 }
@@ -265,19 +282,20 @@ impl Grid {
         if properties.behavior.contains(Behavior::FLOWS) {
             let flow = macroquad::rand::gen_range(0, properties.flow_distance * 2) as i32;
             let left_first = rng::chance(0.5);
+            let falling = !properties.behavior.contains(Behavior::RISES);
 
             if left_first {
-                if self.try_flow(cell, x, y, -1, flow) {
+                if self.try_flow(cell, x, y, -1, flow, falling) {
                     return;
                 }
-                if self.try_flow(cell, x, y, 1, flow) {
+                if self.try_flow(cell, x, y, 1, flow, falling) {
                     return;
                 }
             } else {
-                if self.try_flow(cell, x, y, 1, flow) {
+                if self.try_flow(cell, x, y, 1, flow, falling) {
                     return;
                 }
-                if self.try_flow(cell, x, y, -1, flow) {
+                if self.try_flow(cell, x, y, -1, flow, falling) {
                     return;
                 }
             }
