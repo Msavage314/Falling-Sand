@@ -47,6 +47,7 @@ pub enum MaterialID {
     Smoke,
     Acid,
     DenseRock,
+    FlammableGas,
 }
 impl MaterialID {
     /// Returns a `MaterialProperties` struct of the properties associated with the materialID
@@ -61,7 +62,7 @@ impl MaterialID {
     }
 }
 
-pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(|| {
+pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 18]> = LazyLock::new(|| {
     [
         /* Empty */
         MaterialProperties {
@@ -221,6 +222,15 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 17]> = LazyLock::new(||
             flow_distance: 4,
             lava_resistance: 1.0,
             flammability: 0.0,
+        },
+        /* FlammableGas */
+        MaterialProperties {
+            behavior: Behavior::GAS | Behavior::FLAMMABLE,
+            density: 0.9,
+            color: Color::new(0.2, 0.34, 0.11, 1.0),
+            flow_distance: 7,
+            lava_resistance: 0.1,
+            flammability: 1.0,
         },
     ]
 });

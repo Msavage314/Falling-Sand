@@ -192,6 +192,16 @@ pub static REACTIONS: &[Reaction] = &[
         chance: 0.1,
     },
     Reaction {
+        a: Reactant::Material(MaterialID::FlammableGas),
+        b: Reactant::Behavior(Behavior::STATIC),
+
+        output_a: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Material(MaterialID::Empty),
+        }),
+        output_b: None,
+        chance: 0.1,
+    },
+    Reaction {
         a: Reactant::Material(MaterialID::Fire),
         b: Reactant::Behavior(Behavior::FLAMMABLE),
 
@@ -221,9 +231,9 @@ pub static REACTIONS: &[Reaction] = &[
             },
         }),
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, _b| Product::Material(Empty),
+            apply_fn: |_a, _b| Product::Material(MaterialID::FlammableGas),
         }),
-        chance: 0.1,
+        chance: 0.3,
     },
     Reaction {
         a: Reactant::Material(MaterialID::Water),
