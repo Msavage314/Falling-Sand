@@ -269,3 +269,12 @@ impl Default for MaterialProperties {
         }
     }
 }
+pub fn vary_color(base: Color, amount: f32) -> Color {
+    let jitter = macroquad::rand::gen_range(-amount, amount);
+    Color::new(
+        (base.r + jitter).clamp(0.0, 1.0),
+        (base.g + jitter).clamp(0.0, 1.0),
+        (base.b + jitter).clamp(0.0, 1.0),
+        base.a,
+    )
+}

@@ -47,7 +47,8 @@ impl Grid {
             cells: vec![
                 Cell {
                     material: MaterialID::Empty,
-                    stain: None
+                    stain: None,
+                    color: MaterialID::Empty.properties().color
                 };
                 width * height
             ],
@@ -63,6 +64,7 @@ impl Grid {
             return Cell {
                 material: self.border,
                 stain: None,
+                color: self.border.properties().color,
             };
         }
 
@@ -80,6 +82,17 @@ impl Grid {
             return;
         }
         self.cells[y as usize * self.width + x as usize].material = material;
+    }
+    pub fn create(&mut self, x: i32, y: i32, material: MaterialID) {
+        // create is the same as set, but is used for adding materials
+        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+            return;
+        }
+        self.cells[y as usize * self.width + x as usize] = Cell {
+            material,
+            stain: None,
+            color: materials::vary_color(material.properties().color, 0.05),
+        }
     }
 
     pub fn set_stain(&mut self, x: i32, y: i32, stain: Option<Stain>) {
@@ -189,6 +202,8 @@ impl Grid {
             self.set_stain(x, y, None);
             if stain.kind == StainKind::Burning {
                 self.set_material(x, y, MaterialID::Empty);
+                let idx = y as usize * self.width + x as usize;
+                self.cells[idx].color = MaterialID::Empty.properties().color
             }
         } else {
             self.set_stain(x, y, Some(stain));
@@ -197,7 +212,16 @@ impl Grid {
     fn apply_product(&mut self, x: i32, y: i32, product: Product) -> bool {
         match product {
             Product::Material(mat) => {
-                self.set_material(x, y, mat);
+                let idx = y as usize * self.width + x as usize;
+                if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+                    return false;
+                }
+                self.cells[idx].material = mat;
+                if mat != MaterialID::Empty {
+                    self.cells[idx].color = materials::vary_color(mat.properties().color, 0.05);
+                } else {
+                    self.cells[idx].color = mat.properties().color
+                }
                 true
             }
             Product::Stain(stain) => {
@@ -355,7 +379,7 @@ impl Grid {
             for x in 0..self.width {
                 let id = self.cells[y * self.width + x];
 
-                let base_color = id.material.properties().color;
+                let base_color = id.color;
                 let final_color = match id.stain {
                     Some(stain) if stain.kind == StainKind::Burning => {
                         // flicker between orange/red based on intensity, blended with base
@@ -406,14 +430,7 @@ impl Grid {
         for y in -radius..=radius {
             for x in -radius..=radius {
                 if x * x + y * y <= r2 {
-                    self.set(
-                        cx + x,
-                        cy + y,
-                        Cell {
-                            material,
-                            stain: None,
-                        },
-                    )
+                    self.create(cx + x, cy + y, material)
                 }
             }
         }
