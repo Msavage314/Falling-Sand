@@ -48,7 +48,7 @@ impl Grid {
                 Cell {
                     material: MaterialID::Empty,
                     stain: None,
-                    color: MaterialID::Empty.properties().color
+                    color: (MaterialID::Empty.properties().color)(0, 0)
                 };
                 width * height
             ],
@@ -64,7 +64,7 @@ impl Grid {
             return Cell {
                 material: self.border,
                 stain: None,
-                color: self.border.properties().color,
+                color: (self.border.properties().color)(x, y),
             };
         }
 
@@ -91,7 +91,7 @@ impl Grid {
         self.cells[y as usize * self.width + x as usize] = Cell {
             material,
             stain: None,
-            color: materials::vary_color(material.properties().color, 0.05),
+            color: (material.properties().color)(x, y),
         }
     }
 
@@ -203,7 +203,7 @@ impl Grid {
             if stain.kind == StainKind::Burning {
                 self.set_material(x, y, MaterialID::Empty);
                 let idx = y as usize * self.width + x as usize;
-                self.cells[idx].color = MaterialID::Empty.properties().color
+                self.cells[idx].color = (MaterialID::Empty.properties().color)(x, y)
             }
         } else {
             self.set_stain(x, y, Some(stain));
@@ -218,9 +218,9 @@ impl Grid {
                 }
                 self.cells[idx].material = mat;
                 if mat != MaterialID::Empty {
-                    self.cells[idx].color = materials::vary_color(mat.properties().color, 0.05);
+                    self.cells[idx].color = (mat.properties().color)(x, y);
                 } else {
-                    self.cells[idx].color = mat.properties().color
+                    self.cells[idx].color = (mat.properties().color)(x, y)
                 }
                 true
             }
@@ -517,7 +517,7 @@ async fn main() {
 
                         for id in MaterialID::iter() {
                             let selected = active == id;
-                            let c = id.properties().color;
+                            let c = (id.properties().color)(0, 0);
 
                             let color32 = egui::Color32::from_rgb(
                                 (c.r * 255.0) as u8,
