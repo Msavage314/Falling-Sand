@@ -76,7 +76,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
         MaterialProperties {
             behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.5,
-            color: |_x, _y| vary_color(Color::new(0.96, 0.82, 0.45, 1.0), 0.05),
+            color: |x, y| vary_color(Color::new(0.96, 0.82, 0.45, 1.0), 0.05, x, y),
             lava_resistance: 0.8,
             flammability: 0.0,
             acid_resistance: 0.2,
@@ -86,7 +86,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
         MaterialProperties {
             behavior: Behavior::STATIC | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 3.0,
-            color: |_x, _y| vary_color(Color::new(0.5, 0.5, 0.5, 1.0), 0.05),
+            color: |x, y| vary_color(Color::new(0.5, 0.5, 0.5, 1.0), 0.05, x, y),
             lava_resistance: 0.05,
             acid_resistance: 0.7,
             ..Default::default()
@@ -114,7 +114,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
         MaterialProperties {
             behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.5,
-            color: |_x, _y| vary_color(Color::new(0.9, 0.9, 1.0, 1.0), 0.05),
+            color: |x, y| vary_color(Color::new(0.9, 0.9, 1.0, 1.0), 0.05, x, y),
             lava_resistance: 0.1,
             acid_resistance: 0.7,
             ..Default::default()
@@ -153,7 +153,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
                 | Behavior::CORRODIBLE
                 | Behavior::PERMEABLE,
             density: 1.7,
-            color: |_x, _y| vary_color(Color::new(0.35, 0.23, 0.16, 1.0), 0.05),
+            color: |x, y| vary_color(Color::new(0.35, 0.23, 0.16, 1.0), 0.05, x, y),
             lava_resistance: 0.4,
             acid_resistance: 0.5,
             ..Default::default()
@@ -162,7 +162,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
         MaterialProperties {
             behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.7,
-            color: |_x, _y| vary_color(Color::new(0.9, 1.0, 1.0, 0.9), 0.02),
+            color: |x, y| vary_color(Color::new(0.9, 1.0, 1.0, 0.9), 0.02, x, y),
             lava_resistance: 1.0,
             acid_resistance: 0.0,
             ..Default::default()
@@ -240,7 +240,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
         MaterialProperties {
             behavior: Behavior::SAND,
             density: 2.0,
-            color: |x, y| vary_color(rainbow_color(x, y), 0.1),
+            color: |x, y| vary_color(rainbow_color(x, y), 0.1, x, y),
             ..Default::default()
         },
     ]
@@ -277,15 +277,6 @@ impl Default for MaterialProperties {
         }
     }
 }
-pub fn vary_color(base: Color, amount: f32) -> Color {
-    let jitter = macroquad::rand::gen_range(-amount, amount);
-    Color::new(
-        (base.r + jitter).clamp(0.0, 1.0),
-        (base.g + jitter).clamp(0.0, 1.0),
-        (base.b + jitter).clamp(0.0, 1.0),
-        base.a,
-    )
-}
 
 pub fn hsv_to_color(h: f32, s: f32, v: f32) -> Color {
     let c = v * s;
@@ -311,4 +302,27 @@ pub fn hsv_to_color(h: f32, s: f32, v: f32) -> Color {
 }
 pub fn rainbow_color(x: i32, y: i32) -> Color {
     return hsv_to_color(((12 * x) % 360) as f32, 0.8, 0.7);
+}
+
+pub fn vary_color(base: Color, amount: f32, x: i32, y: i32) -> Color {
+    let jitter = hash_jitter(x, y, amount);
+    Color::new(
+        (base.r + jitter).clamp(0.0, 1.0),
+        (base.g + jitter).clamp(0.0, 1.0),
+        (base.b + jitter).clamp(0.0, 1.0),
+        base.a,
+    )
+}
+
+fn hash_jitter(x: i32, y: i32, amount: f32) -> f32 {
+    // simple integer hash (xorshift-ish), deterministic per coordinate
+    let mut h = (x as u32).wrapping_mul(374761393) ^ (y as u32).wrapping_mul(668265263);
+    h = (h ^ (h >> 13)).wrapping_mul(1274126177);
+    h ^= h >> 16;
+
+    // map hash to [0, 1)
+    let normalized = (h as f32) / (u32::MAX as f32);
+
+    // map to [-amount, amount]
+    (normalized * 2.0 - 1.0) * amount
 }
