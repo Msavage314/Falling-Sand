@@ -48,6 +48,7 @@ pub enum MaterialID {
     Acid,
     DenseRock,
     FlammableGas,
+    Rainbow,
 }
 impl MaterialID {
     /// Returns a `MaterialProperties` struct of the properties associated with the materialID
@@ -62,7 +63,7 @@ impl MaterialID {
     }
 }
 
-pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 18]> = LazyLock::new(|| {
+pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(|| {
     [
         /* Empty */
         MaterialProperties {
@@ -235,6 +236,13 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 18]> = LazyLock::new(||
             burn_time: 0.2,
             ..Default::default()
         },
+        /* Rainbow */
+        MaterialProperties {
+            behavior: Behavior::SAND,
+            density: 2.0,
+            color: |x, y| vary_color(rainbow_color(x, y), 0.1),
+            ..Default::default()
+        },
     ]
 });
 
@@ -277,4 +285,30 @@ pub fn vary_color(base: Color, amount: f32) -> Color {
         (base.b + jitter).clamp(0.0, 1.0),
         base.a,
     )
+}
+
+pub fn hsv_to_color(h: f32, s: f32, v: f32) -> Color {
+    let c = v * s;
+    let hp = h / 60.0;
+    let x = c * (1.0 - (hp % 2.0 - 1.0).abs());
+    let m = v - c;
+
+    let (r, g, b) = if hp >= 0.0 && hp < 1.0 {
+        (c, x, 0.0)
+    } else if hp >= 1.0 && hp < 2.0 {
+        (x, c, 0.0)
+    } else if hp >= 2.0 && hp < 3.0 {
+        (0.0, c, x)
+    } else if hp >= 3.0 && hp < 4.0 {
+        (0.0, x, c)
+    } else if hp >= 4.0 && hp < 5.0 {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
+
+    Color::new(r + m, g + m, b + m, 1.0)
+}
+pub fn rainbow_color(x: i32, y: i32) -> Color {
+    return hsv_to_color(((12 * x) % 360) as f32, 0.8, 0.7);
 }
