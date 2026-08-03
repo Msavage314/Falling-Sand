@@ -1,13 +1,12 @@
 use crate::cell::Cell;
 use crate::materials::Behavior;
 use crate::materials::MaterialID;
-use crate::materials::MaterialID::Empty;
 use crate::materials::MaterialID::FlammableGas;
 use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
 
-/// A reactant can be either a material E.g. Water and Salt or a behavior e.g. Acid and anything with behavior Corrodable
+/// A reactant can be either a material E.g. Water and Salt or a behavior e.g. Acid and anything with behavior Corrodible
 #[derive(Debug, Clone, Copy)]
 pub enum Reactant {
     Material(MaterialID),
@@ -268,7 +267,7 @@ pub static REACTIONS: &[Reaction] = &[
                 let existing = b.stain.map(|s| s.intensity).unwrap_or(0.0);
                 Product::Stain(Stain {
                     kind: StainKind::Wet,
-                    intensity: (existing + 0.3).min(1.0),
+                    intensity: (existing + 5.0).min(1.0),
                     timer: 10.0,
                 })
             },
@@ -332,7 +331,7 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |a, _b| {
+            apply_fn: |a, b| {
                 let intensity = a.stain.map(|s| s.intensity).unwrap_or(1.0) - 0.05;
                 if intensity <= 0.0 {
                     return Product::NoChange;

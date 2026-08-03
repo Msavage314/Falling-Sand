@@ -1,7 +1,6 @@
 use bitflags::bitflags;
 use macroquad::color::Color;
 use std::sync::LazyLock;
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 bitflags! {
@@ -56,7 +55,7 @@ impl MaterialID {
     /// # Examples
     /// ```
     /// let x = MaterialID::Empty
-    /// println!("{}",x.properties().desnsity)
+    /// println!("{}",x.properties().density)
     /// ```
     pub fn properties(self) -> &'static MaterialProperties {
         return &MATERIAL_TABLE[self as usize];
@@ -80,6 +79,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
             lava_resistance: 0.8,
             flammability: 0.0,
             acid_resistance: 0.2,
+            wake_chance: 1.0,
             ..Default::default()
         },
         /* Stone */
@@ -117,6 +117,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
             color: |x, y| vary_color(Color::new(0.9, 0.9, 1.0, 1.0), 0.05, x, y),
             lava_resistance: 0.1,
             acid_resistance: 0.7,
+            wake_chance: 0.4,
             ..Default::default()
         },
         /* Salt Water */
@@ -156,6 +157,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
             color: |x, y| vary_color(Color::new(0.35, 0.23, 0.16, 1.0), 0.05, x, y),
             lava_resistance: 0.4,
             acid_resistance: 0.5,
+            wake_chance: 0.3,
             ..Default::default()
         },
         /* Snow */
@@ -165,6 +167,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
             color: |x, y| vary_color(Color::new(0.9, 1.0, 1.0, 0.9), 0.02, x, y),
             lava_resistance: 1.0,
             acid_resistance: 0.0,
+            wake_chance: 0.05,
             ..Default::default()
         },
         /* Oil */
@@ -186,7 +189,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
                 | Behavior::CORRODIBLE
                 | Behavior::PERMEABLE,
             density: 1.7,
-            color: |_x, _y| Color::new(0.18, 0.12, 0.0, 1.0),
+            color: |_x, _y| Color::new(0.6, 0.4, 0.15, 1.0),
             flammability: 0.05,
             burn_intensity: 1.0,
             burn_time: 5.0,
@@ -222,7 +225,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
         MaterialProperties {
             behavior: Behavior::STATIC,
             density: 0.9,
-            color: |_x, _y| Color::new(0.2, 0.2, 0.2, 1.0),
+            color: |x, y| vary_color(Color::new(0.2, 0.2, 0.2, 1.0), 0.05, x, y),
             ..Default::default()
         },
         /* FlammableGas */
@@ -259,7 +262,9 @@ pub struct MaterialProperties {
     pub burn_time: f32,    // How long this material burns once ignited
     pub burn_intensity: f32, // peak flame intensity
 
-    pub acid_resistance: f32,
+    pub acid_resistance: f32, // chance of dissolving in acid
+
+    pub wake_chance: f32, // chance that the cell comes "awake"
 }
 
 impl Default for MaterialProperties {
@@ -267,13 +272,14 @@ impl Default for MaterialProperties {
         Self {
             behavior: Behavior::empty(),
             density: 0.0,
-            color: |x, y| Color::new(0.0, 0.0, 0.0, 1.0),
+            color: |_x, _yy| Color::new(0.0, 0.0, 0.0, 1.0),
             flow_distance: 0,
             lava_resistance: 0.0,
             flammability: 0.0,
             burn_intensity: 0.0,
             burn_time: 0.0,
             acid_resistance: 0.0,
+            wake_chance: 1.0,
         }
     }
 }
@@ -300,7 +306,7 @@ pub fn hsv_to_color(h: f32, s: f32, v: f32) -> Color {
 
     Color::new(r + m, g + m, b + m, 1.0)
 }
-pub fn rainbow_color(x: i32, y: i32) -> Color {
+pub fn rainbow_color(x: i32, _y: i32) -> Color {
     return hsv_to_color(((12 * x) % 360) as f32, 0.8, 0.7);
 }
 
@@ -315,7 +321,7 @@ pub fn vary_color(base: Color, amount: f32, x: i32, y: i32) -> Color {
 }
 
 fn hash_jitter(x: i32, y: i32, amount: f32) -> f32 {
-    // simple integer hash (xorshift-ish), deterministic per coordinate
+    // simple integer hash (xor shift-ish), deterministic per coordinate
     let mut h = (x as u32).wrapping_mul(374761393) ^ (y as u32).wrapping_mul(668265263);
     h = (h ^ (h >> 13)).wrapping_mul(1274126177);
     h ^= h >> 16;

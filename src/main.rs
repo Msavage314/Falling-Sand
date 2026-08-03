@@ -48,7 +48,8 @@ impl Grid {
                 Cell {
                     material: MaterialID::Empty,
                     stain: None,
-                    color: (MaterialID::Empty.properties().color)(0, 0)
+                    color: (MaterialID::Empty.properties().color)(0, 0),
+                    awake: true
                 };
                 width * height
             ],
@@ -65,17 +66,45 @@ impl Grid {
                 material: self.border,
                 stain: None,
                 color: (self.border.properties().color)(x, y),
+                awake: true,
             };
         }
 
         return self.cells[y as usize * self.width + x as usize];
+    }
+    fn disturb_neighbors(&mut self, x: i32, y: i32) {
+        const OFFSETS: [(i32, i32); 8] = [
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 0),
+            (1, 0),
+            (-1, 1),
+            (0, 1),
+            (1, 1),
+        ];
+        for (dx, dy) in OFFSETS {
+            let (nx, ny) = (x + dx, y + dy);
+            if self.get(nx, ny).awake {
+                continue;
+            }
+            let cell = self.get(nx, ny);
+            if cell.material == MaterialID::Empty {
+                continue;
+            }
+            if macroquad::rand::gen_range(0.0, 1.0) < cell.material.properties().wake_chance {
+                self.cells[ny as usize * self.width + nx as usize].awake = true;
+            }
+        }
     }
 
     pub fn set(&mut self, x: i32, y: i32, value: Cell) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
-        self.cells[y as usize * self.width + x as usize] = value
+
+        self.cells[y as usize * self.width + x as usize] = value;
+        self.cells[y as usize * self.width + x as usize].awake = true;
     }
     pub fn set_material(&mut self, x: i32, y: i32, material: MaterialID) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
@@ -92,6 +121,7 @@ impl Grid {
             material,
             stain: None,
             color: (material.properties().color)(x, y),
+            awake: false,
         }
     }
 
@@ -183,6 +213,9 @@ impl Grid {
         self.set(x1, y1, b);
         self.set(x2, y2, a);
 
+        self.disturb_neighbors(x1, y1);
+        self.disturb_neighbors(x2, y2);
+
         self.mark_updated(x1, y1);
         self.mark_updated(x2, y2);
     }
@@ -238,12 +271,10 @@ impl Grid {
             return;
         }
         let cell = self.get(x, y);
-        let stain = cell.stain;
         let properties = cell.material.properties();
 
         for (cx, cy) in self.get_neighbors(x, y) {
             let other = self.get(cx, cy);
-            let other_stain = other.stain;
             for reaction in REACTIONS {
                 if reaction.a.matches(cell)
                     && reaction.b.matches(other)
@@ -251,7 +282,7 @@ impl Grid {
                 {
                     let mut changed = false;
                     if let Some(oa) = reaction.output_a {
-                        changed |= self.apply_product(x, y, ((oa.apply_fn)(cell, other)))
+                        changed |= self.apply_product(x, y, (oa.apply_fn)(cell, other))
                     }
                     if let Some(ob) = reaction.output_b {
                         changed |= self.apply_product(cx, cy, (ob.apply_fn)(cell, other));
@@ -278,7 +309,7 @@ impl Grid {
                 return;
             }
         }
-        if properties.behavior.contains(Behavior::GRANULAR) {
+        if properties.behavior.contains(Behavior::GRANULAR) && cell.awake {
             if rng::chance(0.5) {
                 let other = self.get(x + 1, y + 1);
                 if self.can_density_swap(cell, other, true) {
@@ -302,6 +333,9 @@ impl Grid {
                     return;
                 }
             }
+            // if we made it to here, then nothing happened this frame
+            let idx = y as usize * self.width + x as usize;
+            self.cells[idx].awake = false;
         }
         if properties.behavior.contains(Behavior::FLOWS) {
             let flow = macroquad::rand::gen_range(0, properties.flow_distance * 2) as i32;
@@ -401,6 +435,17 @@ impl Grid {
                     }
                     _ => base_color,
                 };
+                // if id.material != MaterialID::Empty {
+                //     if id.awake {
+                //         self.image
+                //             .set_pixel(x as u32, y as u32, Color::new(1.0, 0.0, 0.0, 1.0));
+                //     } else {
+                //         self.image
+                //             .set_pixel(x as u32, y as u32, Color::new(0.0, 1.0, 0.0, 1.0));
+                //     }
+                // } else {
+                //     self.image.set_pixel(x as u32, y as u32, final_color);
+                // }
                 self.image.set_pixel(x as u32, y as u32, final_color);
             }
         }
@@ -480,7 +525,6 @@ async fn main() {
     let mut active = MaterialID::Sand;
     let mut radius = 1;
     let mut playing = true;
-    let mut hovered = MaterialID::Empty;
     loop {
         clear_background(BLACK);
 
@@ -495,7 +539,7 @@ async fn main() {
         }
         g.draw();
 
-        let (rx, ry, rw, _rh) = g.compute_grid_dest_rect();
+        let (_rx, _ry, rw, _rh) = g.compute_grid_dest_rect();
 
         let pixel_scale = rw / g.width as f32;
 
@@ -505,10 +549,10 @@ async fn main() {
 
         // Stores whether you have clicked on a egui window, to prevent it drawing underneath
         let mut egui_wants_pointer = false;
-        let (rx, ry, rw, rh) = g.compute_grid_dest_rect();
+        let (rx, _ry, rw, _rh) = g.compute_grid_dest_rect();
         egui_macroquad::ui(|egui_ctx| {
             egui_wants_pointer = egui_ctx.wants_pointer_input();
-            if let Some((px, py, pw, _ph)) = compute_side_panel_rect(rx, rw) {
+            if let Some((_px, _pyy, pw, _ph)) = compute_side_panel_rect(rx, rw) {
                 egui::SidePanel::right("Materials")
                     .exact_width(pw)
                     .show(egui_ctx, |ui| {

@@ -7,4 +7,5 @@ pub struct Cell {
     pub material: MaterialID,
     pub stain: Option<Stain>,
     pub color: Color,
+    pub awake: bool,
 }
