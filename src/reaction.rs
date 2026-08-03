@@ -1,7 +1,6 @@
 use crate::cell::Cell;
 use crate::materials::Behavior;
 use crate::materials::MaterialID;
-use crate::materials::MaterialID::FlammableGas;
 use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
@@ -224,7 +223,7 @@ pub static REACTIONS: &[Reaction] = &[
         output_a: Some(ReactionOutcome {
             apply_fn: |a, _b| {
                 if rng::chance(a.material.properties().acid_resistance) {
-                    Product::Material(FlammableGas)
+                    Product::Material(MaterialID::FlammableGas)
                 } else {
                     Product::NoChange
                 }
