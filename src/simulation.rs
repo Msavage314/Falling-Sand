@@ -15,8 +15,6 @@ pub struct Grid {
     pub width: usize,
     pub height: usize,
     cells: Vec<Cell>,
-    image: Image,
-    texture: Texture2D,
     /// Tracks which cells have already been touched this tick, so a cell moved
     /// by an earlier update will not be updated again
     updated: Vec<bool>,
@@ -25,10 +23,6 @@ pub struct Grid {
 }
 impl Grid {
     pub fn new(width: usize, height: usize, border: MaterialID) -> Self {
-        let image = Image::gen_image_color(width as u16, height as u16, BLACK);
-        let texture = Texture2D::from_image(&image);
-        texture.set_filter(FilterMode::Nearest);
-
         return Grid {
             width: width,
             height: height,
@@ -41,8 +35,6 @@ impl Grid {
                 };
                 width * height
             ],
-            image,
-            texture,
             updated: vec![false; width * height],
             border,
         };
