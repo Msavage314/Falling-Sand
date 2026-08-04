@@ -121,7 +121,7 @@ impl Grid {
             material,
             stain: None,
             color: (material.properties().color)(x, y),
-            awake: false,
+            awake: true,
         }
     }
 
@@ -626,6 +626,7 @@ async fn main() {
                     let (gx, gy) = screen_to_grid(&mut g, mx, my);
                     ui.label(format!("Current Material: {:?}", g.get(gx, gy).material));
                     ui.label(format!("Current Stain: {:?}", g.get(gx, gy).stain));
+                    ui.label(format!("Current Status: {:?}", g.get(gx, gy).awake));
                 });
             }
         });
