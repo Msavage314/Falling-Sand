@@ -340,9 +340,6 @@ impl Grid {
                     return;
                 }
             }
-            // if we made it to here, then nothing happened this frame
-            let idx = y as usize * self.width + x as usize;
-            self.cells[idx].awake = false;
         }
         if properties.behavior.contains(Behavior::FLOWS) {
             let flow = macroquad::rand::gen_range(0, properties.flow_distance * 2) as i32;
@@ -366,14 +363,9 @@ impl Grid {
             }
         }
 
-        // if !properties.behavior.contains(Behavior::STATIC) {
-        //     let cell_b = self.get(x, y + 1);
-        //     if self.get(x, y).properties().density > self.get(x, y + 1).properties().density {
-        //         self.set(x, y, cell_b);
-        //         self.set(x, y + 1, cell);
-        //         return;
-        //     }
-        // }
+        // if we made it to here, then nothing happened this frame
+        let idx = y as usize * self.width + x as usize;
+        self.cells[idx].awake = false;
     }
 
     pub fn update(&mut self, left: bool) {
