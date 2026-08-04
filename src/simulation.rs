@@ -395,67 +395,6 @@ impl Grid {
         return (x, y, w, h);
     }
 
-    pub fn update_texture(&mut self) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let id = self.cells[y * self.width + x];
-
-                let base_color = id.color;
-                let final_color = match id.stain {
-                    Some(stain) if stain.kind == StainKind::Burning => {
-                        // flicker between orange/red based on intensity, blended with base
-                        Color::new(
-                            base_color.r * 0.3 + 0.95 * 0.7,
-                            base_color.g * 0.3 + 0.4 * 0.7,
-                            base_color.b * 0.3,
-                            1.0,
-                        )
-                    }
-                    Some(stain) if stain.kind == StainKind::Wet => {
-                        let darken = 1.0 - 0.3 * stain.intensity;
-                        Color::new(
-                            base_color.r * darken,
-                            base_color.g * darken,
-                            base_color.b * darken,
-                            1.0,
-                        )
-                    }
-                    _ => base_color,
-                };
-                // if id.material != MaterialID::Empty {
-                //     if id.awake {
-                //         self.image
-                //             .set_pixel(x as u32, y as u32, Color::new(1.0, 0.0, 0.0, 1.0));
-                //     } else {
-                //         self.image
-                //             .set_pixel(x as u32, y as u32, Color::new(0.0, 1.0, 0.0, 1.0));
-                //     }
-                // } else {
-                //     self.image.set_pixel(x as u32, y as u32, final_color);
-                // }
-                self.image.set_pixel(x as u32, y as u32, final_color);
-            }
-        }
-
-        self.texture.update(&self.image);
-    }
-
-    pub fn draw(&mut self) {
-        self.update_texture();
-
-        let (x, y, w, h) = self.compute_grid_dest_rect();
-        draw_texture_ex(
-            &self.texture,
-            x,
-            y,
-            WHITE,
-            DrawTextureParams {
-                dest_size: Some(vec2(w, h)),
-                ..Default::default()
-            },
-        )
-    }
-
     pub fn draw_brush(&mut self, cx: i32, cy: i32, radius: i32, material: MaterialID) {
         let r2 = radius * radius;
 

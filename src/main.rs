@@ -2,6 +2,7 @@ mod cell;
 mod config;
 mod materials;
 mod reaction;
+mod render;
 mod rng;
 mod simulation;
 mod stains;
@@ -15,6 +16,7 @@ use stains::StainKind;
 #[macroquad::main("Falling Sand")]
 async fn main() {
     let mut g = Grid::new(200, 150, MaterialID::DenseRock);
+    let mut render = render::GridRenderer::new(g.width, g.height);
     let mut ui = ui::UiState::new();
     let mut frame_count = 0;
     let mut playing = true;
@@ -31,7 +33,7 @@ async fn main() {
             g.update(frame_count % 2 == 0);
         }
 
-        g.draw();
+        render.draw(&g);
 
         if frame_count % 15 == 0 {
             ui.refresh_cache(&mut g);
