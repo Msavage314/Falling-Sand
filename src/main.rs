@@ -532,6 +532,8 @@ async fn main() {
     let mut active = MaterialID::Sand;
     let mut radius = 1;
     let mut playing = true;
+    let mut cached_total = 0;
+    let mut cached_counts: HashMap<MaterialID, i32> = HashMap::new();
     loop {
         clear_background(BLACK);
 
@@ -557,6 +559,10 @@ async fn main() {
         // Stores whether you have clicked on a egui window, to prevent it drawing underneath
         let mut egui_wants_pointer = false;
         let (rx, _ry, rw, _rh) = g.compute_grid_dest_rect();
+        if frame_count % 15 == 0 {
+            cached_total = g.total_alive();
+            cached_counts = g.count_by_material();
+        }
         egui_macroquad::ui(|egui_ctx| {
             egui_wants_pointer = egui_ctx.wants_pointer_input();
             if let Some((_px, _pyy, pw, _ph)) = compute_side_panel_rect(rx, rw) {
@@ -594,9 +600,9 @@ async fn main() {
                         ui.heading("Debug");
                         ui.label(format!("FPS: {}", get_fps()));
                         ui.separator();
-                        ui.label(format!("Total cells alive = {}", g.total_alive()));
+                        ui.label(format!("Total cells alive = {}", &cached_total));
 
-                        let counts = g.count_by_material();
+                        let counts = &cached_counts;
                         for id in MaterialID::iter() {
                             if id != MaterialID::Empty {
                                 let count = counts.get(&id).copied().unwrap_or(0);
