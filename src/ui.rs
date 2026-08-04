@@ -1,6 +1,5 @@
 use crate::Grid;
 use crate::materials::MaterialID;
-use crate::stains::StainKind;
 use egui_macroquad::egui;
 use macroquad::prelude::*;
 use std::collections::HashMap;

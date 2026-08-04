@@ -15,7 +15,7 @@ use stains::StainKind;
 
 #[macroquad::main("Falling Sand")]
 async fn main() {
-    let mut g = Grid::new(200, 150, MaterialID::DenseRock);
+    let mut g = Grid::new(config::WIDTH, config::HEIGHT, MaterialID::DenseRock);
     let mut render = render::GridRenderer::new(g.width, g.height);
     let mut ui = ui::UiState::new();
     let mut frame_count = 0;
