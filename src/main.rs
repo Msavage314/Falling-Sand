@@ -282,7 +282,7 @@ impl Grid {
 
         for (cx, cy) in self.get_neighbors(x, y) {
             let other = self.get(cx, cy);
-            for reaction in REACTIONS {
+            for reaction in &reaction::REACTIONS_BY_MATERIAL[cell.material as usize] {
                 if reaction.a.matches(cell)
                     && reaction.b.matches(other)
                     && rng::chance(reaction.chance)
