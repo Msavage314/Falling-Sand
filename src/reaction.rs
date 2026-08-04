@@ -65,13 +65,13 @@ pub static REACTIONS: &[Reaction] = &[
         chance: 0.1,
     },
     Reaction {
-        a: Reactant::Material(MaterialID::Lava),
+        a: Reactant::Behavior(Behavior::HOT),
         b: Reactant::Material(MaterialID::Water),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |_a, _b| {
+            apply_fn: |a, _b| {
                 if rng::chance(0.5) {
-                    Product::Material(MaterialID::Stone)
+                    Product::Material(a.material.properties().cools_to)
                 } else {
                     Product::NoChange
                 }
@@ -266,7 +266,7 @@ pub static REACTIONS: &[Reaction] = &[
                 let existing = b.stain.map(|s| s.intensity).unwrap_or(0.0);
                 Product::Stain(Stain {
                     kind: StainKind::Wet,
-                    intensity: (existing + 5.0).min(1.0),
+                    intensity: (existing + 0.1).min(1.0),
                     timer: 10.0,
                 })
             },
@@ -331,14 +331,26 @@ pub static REACTIONS: &[Reaction] = &[
         output_a: None,
         output_b: Some(ReactionOutcome {
             apply_fn: |a, b| {
-                let intensity = a.stain.map(|s| s.intensity).unwrap_or(1.0) - 0.05;
-                if intensity <= 0.0 {
+                let source_intensity = a.stain.map(|s| s.intensity).unwrap_or(1.0);
+                let new_intensity = source_intensity - 0.02;
+
+                let (target_intensity, target_timer) = b
+                    .stain
+                    .filter(|s| s.kind == StainKind::Wet)
+                    .map(|s| (s.intensity, s.timer))
+                    .unwrap_or((0.0, 0.0));
+
+                // Epsilon avoids perpetual re-triggering on near-equal intensities
+                if new_intensity <= target_intensity + 0.01 {
                     return Product::NoChange;
                 }
+
                 Product::Stain(Stain {
                     kind: StainKind::Wet,
-                    intensity,
-                    timer: 5.0,
+                    intensity: new_intensity,
+                    // Don't reset to a flat max — just make sure the cell has at
+                    // least enough time to keep existing; evaporation handles the rest
+                    timer: target_timer.max(3.0),
                 })
             },
         }),

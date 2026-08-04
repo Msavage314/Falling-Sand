@@ -19,10 +19,13 @@ bitflags! {
 
         const PERMEABLE = 1<<8; // Can be given the wet stain
 
+        const HOT = 1<<9; // Causes the wet stain to disappear and causes water to evaporate
 
         const SAND = Self::FALLS.bits() | Self::GRANULAR.bits();
         const LIQUID = Self::FALLS.bits() | Self::FLOWS.bits() | Self::GRANULAR.bits();
         const GAS = Self::RISES.bits() |Self::FLOWS.bits();
+
+
     }
 }
 
@@ -131,11 +134,12 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
         },
         /* Lava */
         MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
+            behavior: Behavior::LIQUID | Behavior::CORRODIBLE | Behavior::HOT,
             density: 1.1,
             color: |_x, _y| Color::new(0.95, 0.7, 0.0, 1.0),
             flow_distance: 1,
             acid_resistance: 0.3,
+            cools_to: MaterialID::Stone,
             ..Default::default()
         },
         /* Steam */
@@ -198,7 +202,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(||
         },
         /* Fire */
         MaterialProperties {
-            behavior: Behavior::GAS,
+            behavior: Behavior::GAS | Behavior::HOT,
             density: 0.1,
             color: |_x, _y| Color::new(1.0, 0.5, 0.0, 1.0),
             flow_distance: 1,
@@ -265,6 +269,8 @@ pub struct MaterialProperties {
     pub acid_resistance: f32, // chance of dissolving in acid
 
     pub wake_chance: f32, // chance that the cell comes "awake"
+
+    pub cools_to: MaterialID, // What the material turns into upon contact with something cool. Defaults to empty. For example, lava turns to stone
 }
 
 impl Default for MaterialProperties {
@@ -280,6 +286,7 @@ impl Default for MaterialProperties {
             burn_time: 0.0,
             acid_resistance: 0.0,
             wake_chance: 1.0,
+            cools_to: MaterialID::Empty,
         }
     }
 }
