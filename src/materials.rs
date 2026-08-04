@@ -2,7 +2,7 @@ use bitflags::bitflags;
 use macroquad::color::Color;
 use std::sync::LazyLock;
 use strum_macros::EnumIter;
-
+pub const MATERIAL_COUNT: usize = 19;
 bitflags! {
     #[derive(Debug,Clone,Copy,PartialEq )]
     pub struct Behavior: u16 {
@@ -65,7 +65,7 @@ impl MaterialID {
     }
 }
 
-pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; 19]> = LazyLock::new(|| {
+pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = LazyLock::new(|| {
     [
         /* Empty */
         MaterialProperties {

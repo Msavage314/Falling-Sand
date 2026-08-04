@@ -1,9 +1,13 @@
 use crate::cell::Cell;
 use crate::materials::Behavior;
+use crate::materials::MATERIAL_COUNT;
 use crate::materials::MaterialID;
 use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
+use std::collections::HashMap;
+use std::sync::LazyLock;
+use strum::IntoEnumIterator;
 
 /// A reactant can be either a material E.g. Water and Salt or a behavior e.g. Acid and anything with behavior Corrodible
 #[derive(Debug, Clone, Copy)]
@@ -35,6 +39,7 @@ pub struct ReactionOutcome {
     pub apply_fn: fn(a: Cell, b: Cell) -> Product,
 }
 
+#[derive(Clone, Copy)]
 pub struct Reaction {
     pub a: Reactant,
     pub b: Reactant,
@@ -358,3 +363,17 @@ pub static REACTIONS: &[Reaction] = &[
         chance: 0.3,
     },
 ];
+pub static REACTIONS_BY_MATERIAL: LazyLock<[Vec<&'static Reaction>; MATERIAL_COUNT]> =
+    LazyLock::new(|| {
+        std::array::from_fn(|i| {
+            let mat = MaterialID::iter().nth(i).unwrap(); // or a From<usize> impl if you have one
+            REACTIONS
+                .iter()
+                .filter(|r| match r.a {
+                    Reactant::Material(id) => id == mat,
+                    Reactant::Behavior(flag) => mat.properties().behavior.contains(flag),
+                    Reactant::Stain(_) => true,
+                })
+                .collect()
+        })
+    });

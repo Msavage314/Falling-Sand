@@ -121,7 +121,7 @@ impl Grid {
             material,
             stain: None,
             color: (material.properties().color)(x, y),
-            awake: false,
+            awake: true,
         }
     }
 
@@ -282,7 +282,7 @@ impl Grid {
 
         for (cx, cy) in self.get_neighbors(x, y) {
             let other = self.get(cx, cy);
-            for reaction in REACTIONS {
+            for reaction in &reaction::REACTIONS_BY_MATERIAL[cell.material as usize] {
                 if reaction.a.matches(cell)
                     && reaction.b.matches(other)
                     && rng::chance(reaction.chance)
@@ -340,9 +340,6 @@ impl Grid {
                     return;
                 }
             }
-            // if we made it to here, then nothing happened this frame
-            let idx = y as usize * self.width + x as usize;
-            self.cells[idx].awake = false;
         }
         if properties.behavior.contains(Behavior::FLOWS) {
             let flow = macroquad::rand::gen_range(0, properties.flow_distance * 2) as i32;
@@ -366,14 +363,9 @@ impl Grid {
             }
         }
 
-        // if !properties.behavior.contains(Behavior::STATIC) {
-        //     let cell_b = self.get(x, y + 1);
-        //     if self.get(x, y).properties().density > self.get(x, y + 1).properties().density {
-        //         self.set(x, y, cell_b);
-        //         self.set(x, y + 1, cell);
-        //         return;
-        //     }
-        // }
+        // if we made it to here, then nothing happened this frame
+        let idx = y as usize * self.width + x as usize;
+        self.cells[idx].awake = false;
     }
 
     pub fn update(&mut self, left: bool) {
@@ -532,6 +524,8 @@ async fn main() {
     let mut active = MaterialID::Sand;
     let mut radius = 1;
     let mut playing = true;
+    let mut cached_total = 0;
+    let mut cached_counts: HashMap<MaterialID, i32> = HashMap::new();
     loop {
         clear_background(BLACK);
 
@@ -557,6 +551,10 @@ async fn main() {
         // Stores whether you have clicked on a egui window, to prevent it drawing underneath
         let mut egui_wants_pointer = false;
         let (rx, _ry, rw, _rh) = g.compute_grid_dest_rect();
+        if frame_count % 15 == 0 {
+            cached_total = g.total_alive();
+            cached_counts = g.count_by_material();
+        }
         egui_macroquad::ui(|egui_ctx| {
             egui_wants_pointer = egui_ctx.wants_pointer_input();
             if let Some((_px, _pyy, pw, _ph)) = compute_side_panel_rect(rx, rw) {
@@ -594,9 +592,9 @@ async fn main() {
                         ui.heading("Debug");
                         ui.label(format!("FPS: {}", get_fps()));
                         ui.separator();
-                        ui.label(format!("Total cells alive = {}", g.total_alive()));
+                        ui.label(format!("Total cells alive = {}", &cached_total));
 
-                        let counts = g.count_by_material();
+                        let counts = &cached_counts;
                         for id in MaterialID::iter() {
                             if id != MaterialID::Empty {
                                 let count = counts.get(&id).copied().unwrap_or(0);
@@ -628,6 +626,7 @@ async fn main() {
                     let (gx, gy) = screen_to_grid(&mut g, mx, my);
                     ui.label(format!("Current Material: {:?}", g.get(gx, gy).material));
                     ui.label(format!("Current Stain: {:?}", g.get(gx, gy).stain));
+                    ui.label(format!("Current Status: {:?}", g.get(gx, gy).awake));
                 });
             }
         });
