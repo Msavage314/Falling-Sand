@@ -254,6 +254,7 @@ pub static REACTIONS: &[Reaction] = &[
                 })
             },
         }),
+
         chance: 0.5,
     },
     Reaction {
