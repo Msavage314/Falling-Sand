@@ -30,7 +30,9 @@ impl UiState {
         let (rx, ry, rw, _rh) = compute_grid_dest_rect(grid.width, grid.height);
         let pixel_scale = rw / grid.width as f32;
         let (mx, my) = mouse_position();
+
         draw_circle_lines(mx, my, self.radius as f32 * pixel_scale, 1.5, WHITE);
+
         egui_macroquad::ui(|egui_ctx| {
             wants_pointer = egui_ctx.wants_pointer_input();
 

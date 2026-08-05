@@ -50,15 +50,7 @@ async fn main() {
             if is_mouse_button_down(MouseButton::Right) {
                 let (mx, my) = mouse_position();
                 let (gx, gy) = ui::screen_to_grid(g.width, g.height, mx, my);
-                g.set_stain(
-                    gx,
-                    gy,
-                    Some(Stain {
-                        kind: StainKind::Burning,
-                        intensity: 1.0,
-                        timer: 3.0, // 3 seconds of burning
-                    }),
-                )
+                g.draw_brush(gx, gy, ui.radius, MaterialID::Empty);
             }
         }
         if is_key_pressed(KeyCode::Space) {

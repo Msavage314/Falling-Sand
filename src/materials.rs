@@ -2,7 +2,9 @@ use bitflags::bitflags;
 use macroquad::color::Color;
 use std::sync::LazyLock;
 use strum_macros::EnumIter;
+
 pub const MATERIAL_COUNT: usize = 19;
+
 bitflags! {
     #[derive(Debug,Clone,Copy,PartialEq )]
     pub struct Behavior: u16 {
