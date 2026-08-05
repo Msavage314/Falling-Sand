@@ -3,7 +3,7 @@ use macroquad::color::Color;
 use std::sync::LazyLock;
 use strum_macros::EnumIter;
 
-pub const MATERIAL_COUNT: usize = 19;
+pub const MATERIAL_COUNT: usize = 20;
 
 bitflags! {
     #[derive(Debug,Clone,Copy,PartialEq )]
@@ -54,6 +54,7 @@ pub enum MaterialID {
     DenseRock,
     FlammableGas,
     Rainbow,
+    Coal,
 }
 impl MaterialID {
     /// Returns a `MaterialProperties` struct of the properties associated with the materialID
@@ -248,9 +249,20 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         },
         /* Rainbow */
         MaterialProperties {
-            behavior: Behavior::POWDER,
+            behavior: Behavior::POWDER | Behavior::CORRODIBLE,
             density: 2.0,
             color: |x, y| vary_color(rainbow_color(x, y), 0.1, x, y),
+            ..Default::default()
+        },
+        /* Coal */
+        MaterialProperties {
+            behavior: Behavior::POWDER | Behavior::FLAMMABLE | Behavior::PERMEABLE,
+            density: 2.0,
+            color: |x, y| vary_color(Color::new(0.1, 0.1, 0.1, 1.0), 0.1, x, y),
+            flammability: 0.004,
+            burn_intensity: 1.0,
+            burn_time: 10.0,
+            wake_chance: 0.1,
             ..Default::default()
         },
     ]
