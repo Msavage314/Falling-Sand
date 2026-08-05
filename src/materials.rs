@@ -194,7 +194,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
                 | Behavior::CORRODIBLE
                 | Behavior::PERMEABLE,
             density: 1.7,
-            color: |_x, _y| Color::new(0.6, 0.4, 0.15, 1.0),
+            color: |_x, _y| Color::from_rgba(74, 61, 38, 255),
             flammability: 0.05,
             burn_intensity: 1.0,
             burn_time: 5.0,
@@ -339,4 +339,31 @@ fn hash_jitter(x: i32, y: i32, amount: f32) -> f32 {
 
     // map to [-amount, amount]
     (normalized * 2.0 - 1.0) * amount
+}
+
+pub fn wood_color(x: i32, y: i32) -> Color {
+    let mut c = Color::new(0.60, 0.40, 0.18, 1.0);
+
+    let plank_width = 12;
+    let plank = x.div_euclid(plank_width);
+    let local = x.rem_euclid(plank_width);
+
+    // Each plank has a different tint
+    let plank_offset = hash_jitter(plank, 0, 0.08);
+
+    // Long grain
+    let grain = ((y as f32 * 0.18).sin()) * 0.03 + hash_jitter(x / 6, y / 2, 0.03);
+
+    let mut brightness = plank_offset + grain;
+
+    // Dark seams
+    if local == 0 || local == plank_width - 1 {
+        brightness -= 0.15;
+    }
+
+    c.r = (c.r + brightness).clamp(0.0, 1.0);
+    c.g = (c.g + brightness).clamp(0.0, 1.0);
+    c.b = (c.b + brightness).clamp(0.0, 1.0);
+
+    c
 }

@@ -2,6 +2,7 @@ use crate::cell::Cell;
 use crate::materials::Behavior;
 use crate::materials::MATERIAL_COUNT;
 use crate::materials::MaterialID;
+use crate::reaction::Reactant::Material;
 use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
@@ -399,6 +400,16 @@ pub static REACTIONS: &[Reaction] = &[
             },
         }),
         chance: 0.3,
+    },
+    Reaction {
+        a: Reactant::Material(MaterialID::Snow),
+        b: Reactant::Behavior(Behavior::HOT),
+
+        output_a: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Material(MaterialID::Steam),
+        }),
+        output_b: None,
+        chance: 1.0,
     },
 ];
 pub static REACTIONS_BY_MATERIAL: LazyLock<[Vec<&'static Reaction>; MATERIAL_COUNT]> =
