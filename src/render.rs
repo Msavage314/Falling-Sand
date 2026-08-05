@@ -34,6 +34,10 @@ impl GridRenderer {
                             1.0,
                         )
                     }
+                    Some(stain) if stain.kind == StainKind::Slimy => {
+                        let new = blend_colors(base_color, Color::new(0.8, 0.3, 0.8, 1.0));
+                        Color::new(new.r * 0.9, new.g * 0.9, new.b * 0.9, new.a)
+                    }
                     _ => base_color,
                 };
                 self.image.set_pixel(x as u32, y as u32, final_color);
@@ -55,4 +59,16 @@ impl GridRenderer {
             },
         )
     }
+}
+fn blend_colors(back: Color, front: Color) -> Color {
+    let out_a = front.a + back.a * (1.0 - front.a);
+    if out_a <= 0.0 {
+        return Color::new(0.0, 0.0, 0.0, 0.0);
+    }
+
+    let out_r = (front.r * front.a + back.r * back.a * (1.0 - front.a)) / out_a;
+    let out_g = (front.g * front.a + back.g * back.a * (1.0 - front.a)) / out_a;
+    let out_b = (front.b * front.a + back.b * back.a * (1.0 - front.a)) / out_a;
+
+    Color::new(out_r, out_g, out_b, out_a)
 }

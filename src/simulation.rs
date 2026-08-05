@@ -209,6 +209,9 @@ impl Grid {
         let Some(mut stain) = self.get(x, y).stain else {
             return;
         };
+        if stain.kind == StainKind::Slimy {
+            return;
+        }
         if stain.kind == StainKind::Wet {
             stain.intensity -= 0.05 * get_frame_time(); // tune evaporation rate
             if stain.intensity <= 0.0 {

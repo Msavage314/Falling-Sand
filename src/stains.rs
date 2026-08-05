@@ -2,6 +2,7 @@
 pub enum StainKind {
     Burning,
     Wet,
+    Slimy,
 }
 
 #[derive(Debug, Clone, Copy)]

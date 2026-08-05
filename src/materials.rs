@@ -11,6 +11,7 @@ bitflags! {
         const STATIC = 1 << 2; // doesn't move
         const GRANULAR = 1 <<3; // Piles diagonally when blocked
         const RISES = 1<<4;
+        const SAND = 1<<10; // Present in sand
 
         const MELTABLE = 1<<5; // Destroyed by lava
         const FLAMMABLE = 1 <<6;
@@ -21,7 +22,7 @@ bitflags! {
 
         const HOT = 1<<9; // Causes the wet stain to disappear and causes water to evaporate
 
-        const SAND = Self::FALLS.bits() | Self::GRANULAR.bits();
+        const POWDER = Self::FALLS.bits() | Self::GRANULAR.bits() | Self::SAND.bits();
         const LIQUID = Self::FALLS.bits() | Self::FLOWS.bits() | Self::GRANULAR.bits();
         const GAS = Self::RISES.bits() |Self::FLOWS.bits();
 
@@ -76,7 +77,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         },
         /* Sand  */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
+            behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.5,
             color: |x, y| vary_color(Color::new(0.96, 0.82, 0.45, 1.0), 0.05, x, y),
             lava_resistance: 0.8,
@@ -107,7 +108,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         MaterialProperties {
             behavior: Behavior::LIQUID | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.3,
-            color: |_x, _y| Color::new(0.8, 0.3, 0.8, 1.0),
+            color: |x, y| vary_color(Color::new(0.8, 0.3, 0.8, 1.0), 0.05, x, y),
             flow_distance: 3,
             lava_resistance: 1.0,
             acid_resistance: 0.9,
@@ -115,7 +116,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         },
         /* Salt */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
+            behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.5,
             color: |x, y| vary_color(Color::new(0.9, 0.9, 1.0, 1.0), 0.05, x, y),
             lava_resistance: 0.1,
@@ -153,7 +154,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         },
         /* Dirt */
         MaterialProperties {
-            behavior: Behavior::SAND
+            behavior: Behavior::POWDER
                 | Behavior::MELTABLE
                 | Behavior::CORRODIBLE
                 | Behavior::PERMEABLE,
@@ -166,7 +167,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         },
         /* Snow */
         MaterialProperties {
-            behavior: Behavior::SAND | Behavior::MELTABLE | Behavior::CORRODIBLE,
+            behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
             density: 1.7,
             color: |x, y| vary_color(Color::new(0.9, 1.0, 1.0, 0.9), 0.02, x, y),
             lava_resistance: 1.0,
@@ -245,7 +246,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         },
         /* Rainbow */
         MaterialProperties {
-            behavior: Behavior::SAND,
+            behavior: Behavior::POWDER,
             density: 2.0,
             color: |x, y| vary_color(rainbow_color(x, y), 0.1, x, y),
             ..Default::default()

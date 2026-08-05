@@ -170,6 +170,24 @@ pub static REACTIONS: &[Reaction] = &[
         chance: 0.1,
     },
     Reaction {
+        a: Reactant::Material(MaterialID::Fire),
+        b: Reactant::Material(MaterialID::Fire),
+
+        output_a: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Material(MaterialID::Empty),
+        }),
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| {
+                if rng::chance(0.1) {
+                    Product::Material(MaterialID::Smoke)
+                } else {
+                    Product::NoChange
+                }
+            },
+        }),
+        chance: 0.1,
+    },
+    Reaction {
         a: Reactant::Stain(StainKind::Burning),
         b: Reactant::Material(MaterialID::Empty),
 
@@ -329,6 +347,26 @@ pub static REACTIONS: &[Reaction] = &[
             },
         }),
         chance: 0.5,
+    },
+    Reaction {
+        a: Reactant::Material(MaterialID::Slime),
+        b: Reactant::Behavior(Behavior::POWDER),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, b| {
+                if b.stain.is_some_and(|s| s.kind == StainKind::Slimy) {
+                    Product::NoChange
+                } else {
+                    Product::Stain(Stain {
+                        kind: StainKind::Slimy,
+                        intensity: 1.0,
+                        timer: 1.0,
+                    })
+                }
+            },
+        }),
+        chance: 0.05,
     },
     Reaction {
         a: Reactant::Stain(StainKind::Wet),
