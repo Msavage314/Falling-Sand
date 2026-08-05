@@ -126,6 +126,7 @@ impl UiState {
             ui.label(format!("Current Material: {:?}", grid.get(gx, gy).material));
             ui.label(format!("Current Stain: {:?}", grid.get(gx, gy).stain));
             ui.label(format!("Current Status: {:?}", grid.get(gx, gy).awake));
+            ui.label(format!("Current Position: ({:?},{:?})", gx, gy))
         });
     }
 }
