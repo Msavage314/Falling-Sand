@@ -77,6 +77,17 @@ impl Grid {
             }
         }
     }
+    pub fn clear(&mut self) {
+        self.cells = vec![
+            Cell {
+                material: MaterialID::Empty,
+                stain: None,
+                color: (MaterialID::Empty.properties().color)(0, 0),
+                awake: true
+            };
+            self.width * self.height
+        ]
+    }
 
     pub fn set(&mut self, x: i32, y: i32, value: Cell) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {

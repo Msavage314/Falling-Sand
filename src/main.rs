@@ -19,7 +19,6 @@ async fn main() {
     let mut render = render::GridRenderer::new(g.width, g.height);
     let mut ui = ui::UiState::new();
     let mut frame_count = 0;
-    let mut playing = true;
     loop {
         clear_background(BLACK);
 
@@ -29,7 +28,7 @@ async fn main() {
         }
 
         frame_count += 1;
-        if playing {
+        if ui.playing {
             g.update(frame_count % 2 == 0);
         }
 
@@ -54,7 +53,7 @@ async fn main() {
             }
         }
         if is_key_pressed(KeyCode::Space) {
-            playing = !playing
+            ui.playing = !ui.playing
         }
 
         egui_macroquad::draw();

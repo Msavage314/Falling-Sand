@@ -41,7 +41,7 @@ impl UiState {
             {
                 self.draw_materials_panel(egui_ctx, panel_width);
                 self.draw_info_panel(egui_ctx, panel_width, grid);
-                self.draw_controls_window(egui_ctx);
+                self.draw_controls_window(egui_ctx, grid);
                 self.draw_current_window(egui_ctx, grid);
             }
         });
@@ -109,7 +109,7 @@ impl UiState {
             });
     }
 
-    fn draw_controls_window(&mut self, egui_ctx: &egui::Context) {
+    fn draw_controls_window(&mut self, egui_ctx: &egui::Context, grid: &mut Grid) {
         egui::Window::new("controls").show(egui_ctx, |ui| {
             let button_text = if self.playing {
                 "⏸ Pause"
@@ -118,6 +118,9 @@ impl UiState {
             };
             if ui.button(button_text).clicked() {
                 self.playing = !self.playing;
+            }
+            if ui.button("X Clear").clicked() {
+                grid.clear();
             }
         });
     }
