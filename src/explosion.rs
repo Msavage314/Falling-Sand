@@ -19,7 +19,13 @@ impl Explosion for CircleExplosion {
             for dx in -radius..=radius {
                 if dx * dx + dy * dy <= r2 {
                     if rng::chance(0.1) {
-                        grid.create(x + dx, y + dy, MaterialID::Fire)
+                        grid.add_particle(
+                            x + dx,
+                            y + dy,
+                            macroquad::rand::gen_range(-5.0, 5.0),
+                            macroquad::rand::gen_range(-5.0, 5.0),
+                            MaterialID::Fire,
+                        )
                     }
                 }
             }

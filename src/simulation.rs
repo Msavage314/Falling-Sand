@@ -1,12 +1,15 @@
 use crate::cell::Cell;
+use crate::config::GRAVITY;
 use crate::materials::Behavior;
 use crate::materials::MaterialID;
 use crate::materials::MaterialID::Fire;
+use crate::particle::Particle;
 use crate::reaction;
 use crate::reaction::Product;
 use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
+use egui_macroquad::egui::vec2;
 use macroquad::prelude::*;
 use std::collections::HashMap;
 /// Owns the simulation state and rendering surface for the falling-sand grid.
@@ -16,6 +19,9 @@ pub struct Grid {
     pub width: usize,
     pub height: usize,
     cells: Vec<Cell>,
+    /// List of particles. They have velocity and position, and move according to physics until they
+    /// collide with a non empty cell
+    pub particles: Vec<Particle>,
     /// Tracks which cells have already been touched this tick, so a cell moved
     /// by an earlier update will not be updated again
     updated: Vec<bool>,
@@ -36,6 +42,7 @@ impl Grid {
                 };
                 width * height
             ],
+            particles: vec![],
             updated: vec![false; width * height],
             border,
         };
@@ -274,6 +281,36 @@ impl Grid {
             Product::NoChange => false,
         }
     }
+    fn update_particles(&mut self) {
+        let mut particles = std::mem::take(&mut self.particles);
+
+        particles.retain_mut(|particle| {
+            particle.vel += vec2(0.0, GRAVITY);
+            let new_pos = (particle.pos + particle.vel).floor();
+
+            if self.get(new_pos.x as i32, new_pos.y as i32).material != MaterialID::Empty {
+                self.create(
+                    particle.pos.x as i32,
+                    particle.pos.y as i32,
+                    particle.material,
+                );
+                false
+            } else {
+                particle.pos = new_pos;
+                true
+            }
+        });
+
+        self.particles = particles;
+    }
+    pub fn add_particle(&mut self, x: i32, y: i32, vx: f32, vy: f32, material: MaterialID) {
+        self.particles.push(Particle {
+            pos: vec2(x as f32, y as f32),
+            vel: vec2(vx, vy),
+            material: material,
+            lifetime: 50.0,
+        })
+    }
 
     fn update_cell(&mut self, x: i32, y: i32) {
         let idx = y as usize * self.width + x as usize;
@@ -373,7 +410,7 @@ impl Grid {
 
     pub fn update(&mut self, left: bool) {
         self.updated.fill(false);
-
+        self.update_particles();
         for y in (0..self.height).rev() {
             if left {
                 for x in (0..self.width).rev() {
@@ -417,6 +454,17 @@ impl Grid {
             for x in -radius..=radius {
                 if x * x + y * y <= r2 {
                     self.create(cx + x, cy + y, material)
+                }
+            }
+        }
+    }
+    pub fn draw_particles(&mut self, cx: i32, cy: i32, radius: i32, material: MaterialID) {
+        let r2 = radius * radius;
+
+        for y in -radius..=radius {
+            for x in -radius..=radius {
+                if x * x + y * y <= r2 {
+                    self.add_particle(cx + x, cy + y, 0.0, 1.0, material)
                 }
             }
         }

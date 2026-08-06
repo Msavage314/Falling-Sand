@@ -2,6 +2,7 @@ mod cell;
 mod config;
 mod explosion;
 mod materials;
+mod particle;
 mod reaction;
 mod render;
 mod rng;
@@ -52,6 +53,7 @@ async fn main() {
             if is_mouse_button_down(MouseButton::Right) {
                 let (mx, my) = mouse_position();
                 let (gx, gy) = ui::screen_to_grid(g.width, g.height, mx, my);
+                g.draw_brush(gx, gy, ui.radius, MaterialID::Empty);
             }
         }
         if is_key_pressed(KeyCode::Space) {
