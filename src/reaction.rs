@@ -418,6 +418,16 @@ pub static REACTIONS: &[Reaction] = &[
         output_b: None,
         chance: 1.0,
     },
+    Reaction {
+        a: Reactant::Material(MaterialID::Water),
+        b: Reactant::Material(MaterialID::ToxicSludge),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Material(MaterialID::Water),
+        }),
+        chance: 0.1,
+    },
 ];
 pub static REACTIONS_BY_MATERIAL: LazyLock<[Vec<&'static Reaction>; MATERIAL_COUNT]> =
     LazyLock::new(|| {
