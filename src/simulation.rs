@@ -287,19 +287,19 @@ impl Grid {
             }
         }
 
-        if properties.behavior.contains(Behavior::FALLS) {
+        if cell.behaviors().contains(Behavior::FALLS) {
             if self.can_density_swap(self.get(x, y), self.get(x, y + 1), true) {
                 self.swap_cells(x, y, x, y + 1);
                 return;
             }
         }
-        if properties.behavior.contains(Behavior::RISES) {
+        if cell.behaviors().contains(Behavior::RISES) {
             if self.can_density_swap(self.get(x, y), self.get(x, y - 1), false) {
                 self.swap_cells(x, y, x, y - 1);
                 return;
             }
         }
-        if properties.behavior.contains(Behavior::GRANULAR) && cell.awake {
+        if cell.behaviors().contains(Behavior::GRANULAR) && cell.awake {
             if rng::chance(0.5) {
                 let other = self.get(x + 1, y + 1);
                 if self.can_density_swap(cell, other, true) {
@@ -324,10 +324,10 @@ impl Grid {
                 }
             }
         }
-        if properties.behavior.contains(Behavior::FLOWS) {
+        if cell.behaviors().contains(Behavior::FLOWS) {
             let flow = macroquad::rand::gen_range(0, properties.flow_distance * 2) as i32;
             let left_first = rng::chance(0.5);
-            let falling = !properties.behavior.contains(Behavior::RISES);
+            let falling = !cell.behaviors().contains(Behavior::RISES);
 
             if left_first {
                 if self.try_flow(cell, x, y, -1, flow, falling) {

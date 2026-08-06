@@ -21,7 +21,14 @@ impl Reactant {
     pub fn matches(self, cell: Cell) -> bool {
         match self {
             Reactant::Material(id) => id == cell.material,
-            Reactant::Behavior(flag) => cell.material.properties().behavior.contains(flag),
+            Reactant::Behavior(flag) => {
+                let mat_behavior = cell.material.properties().behavior;
+                let stain_behavior = cell
+                    .stain
+                    .map(|s| s.kind.behavior())
+                    .unwrap_or(Behavior::empty());
+                (mat_behavior | stain_behavior).contains(flag)
+            }
             Reactant::Stain(kind) => cell.stain.is_some_and(|s| s.kind == kind),
         }
     }

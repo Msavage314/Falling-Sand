@@ -294,7 +294,7 @@ impl Default for MaterialProperties {
             behavior: Behavior::empty(),
             density: 0.0,
             color: |_x, _yy| Color::new(0.0, 0.0, 0.0, 1.0),
-            flow_distance: 0,
+            flow_distance: 1,
             lava_resistance: 0.0,
             flammability: 0.0,
             burn_intensity: 0.0,

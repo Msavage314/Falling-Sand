@@ -1,8 +1,18 @@
+use crate::materials::Behavior;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StainKind {
     Burning,
     Wet,
     Slimy,
+}
+impl StainKind {
+    pub fn behavior(self) -> Behavior {
+        match self {
+            StainKind::Burning => Behavior::HOT,
+            _ => Behavior::empty(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
