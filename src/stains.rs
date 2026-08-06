@@ -5,6 +5,7 @@ pub enum StainKind {
     Burning,
     Wet,
     Slimy,
+    Toxic,
 }
 impl StainKind {
     pub fn behavior(self) -> Behavior {
