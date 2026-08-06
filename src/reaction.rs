@@ -1,15 +1,15 @@
 use crate::cell::Cell;
+use crate::explosion::CircleExplosion;
+use crate::explosion::Explosion;
 use crate::materials::Behavior;
 use crate::materials::MATERIAL_COUNT;
 use crate::materials::MaterialID;
-use crate::reaction::Reactant::Material;
 use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
-use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::LazyLock;
 use strum::IntoEnumIterator;
-
 /// A reactant can be either a material E.g. Water and Salt or a behavior e.g. Acid and anything with behavior Corrodible
 #[derive(Debug, Clone, Copy)]
 pub enum Reactant {
@@ -35,11 +35,16 @@ impl Reactant {
 }
 
 /// Represents the output of a chemical reaction.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Product {
     Material(MaterialID),
     Stain(Stain),
     NoChange,
+    Explosion {
+        source: Arc<dyn Explosion>,
+        x_offset: i32,
+        y_offset: i32,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -447,6 +452,20 @@ pub static REACTIONS: &[Reaction] = &[
             apply_fn: |_a, _b| Product::Material(MaterialID::Water),
         }),
         chance: 0.1,
+    },
+    Reaction {
+        a: Reactant::Behavior(Behavior::HOT),
+        b: Reactant::Material(MaterialID::Gunpowder),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Explosion {
+                source: Arc::new(CircleExplosion { radius: 20 }),
+                x_offset: 0,
+                y_offset: 0,
+            },
+        }),
+        chance: 1.0,
     },
 ];
 pub static REACTIONS_BY_MATERIAL: LazyLock<[Vec<&'static Reaction>; MATERIAL_COUNT]> =

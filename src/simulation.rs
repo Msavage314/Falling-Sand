@@ -1,6 +1,7 @@
 use crate::cell::Cell;
 use crate::materials::Behavior;
 use crate::materials::MaterialID;
+use crate::materials::MaterialID::Fire;
 use crate::reaction;
 use crate::reaction::Product;
 use crate::rng;
@@ -260,6 +261,14 @@ impl Grid {
             }
             Product::Stain(stain) => {
                 self.set_stain(x, y, Some(stain));
+                true
+            }
+            Product::Explosion {
+                source,
+                x_offset,
+                y_offset,
+            } => {
+                source.detonate(self, x + x_offset, y + y_offset);
                 true
             }
             Product::NoChange => false,
