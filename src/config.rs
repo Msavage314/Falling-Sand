@@ -4,5 +4,5 @@ use crate::materials::MaterialID;
 /// `DenseRock` results in sand stopping at the edge, whereas `Empty` makes it fall offscreen
 pub const BORDER_OPTIONS: [MaterialID; 2] = [MaterialID::Empty, MaterialID::DenseRock];
 
-pub const WIDTH: usize = 200;
-pub const HEIGHT: usize = 150;
+pub const WIDTH: usize = 400;
+pub const HEIGHT: usize = 300;
