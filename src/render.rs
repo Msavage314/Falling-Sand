@@ -41,6 +41,15 @@ impl GridRenderer {
                     Some(stain) if stain.kind == StainKind::Toxic => {
                         Color::from_rgba(148, 247, 0, 255)
                     }
+                    Some(stain) if stain.kind == StainKind::Charred => {
+                        let darken = 1.0 - stain.intensity;
+                        Color::new(
+                            base_color.r * darken,
+                            base_color.g * darken,
+                            base_color.b * darken,
+                            1.0,
+                        )
+                    }
                     _ => base_color,
                 };
                 self.image.set_pixel(x as u32, y as u32, final_color);

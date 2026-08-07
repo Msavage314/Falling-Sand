@@ -229,7 +229,7 @@ impl Grid {
         let Some(mut stain) = self.get(x, y).stain else {
             return;
         };
-        if stain.kind == StainKind::Slimy {
+        if stain.kind == StainKind::Slimy || stain.kind == StainKind::Charred {
             return;
         }
         if stain.kind == StainKind::Wet {

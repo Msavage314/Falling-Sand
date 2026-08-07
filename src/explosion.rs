@@ -1,7 +1,8 @@
-use crate::materials::MaterialID::{self, DenseRock};
-use crate::rng;
+use crate::materials::Behavior;
+use crate::materials::MaterialID::{self, DenseRock, Dynamite, Fire, Gunpowder};
 use crate::simulation::Grid;
 use crate::stains::Stain;
+use crate::{rng, stains};
 pub trait Explosion: std::fmt::Debug {
     fn detonate(&self, grid: &mut Grid, x: i32, y: i32);
 }
@@ -88,37 +89,95 @@ impl RayTracedExplosion {
         let mut x = x0;
         let mut y = y0;
 
+        let mut destroying = true;
         loop {
-            // the ray has used all its "energy"
-            if power <= 0.0 {
-                break;
-            }
-            if (x0 - x) * (x0 - x) + (y0 - y) * (y0 - y) > (self.radius * self.radius) {
-                break;
-            }
             let cell = grid.get(x, y);
             let resistance = cell.material.properties().explosion_resistance;
-            if cell.material != MaterialID::Empty {
-                power -= resistance;
-                if power > 0.0 {
-                    grid.create(x, y, MaterialID::Fire);
-                    if rng::chance(0.5) {
-                        let spread = 100.0;
+            power -= resistance;
+            // the ray has used all its "energy"
+            if power <= 0.0 {
+                destroying = false;
+            }
 
-                        let vy = (y1 - y0) as f32;
-                        let vx = (x1 - x0) as f32;
-                        let vx = vx + macroquad::rand::gen_range(-spread, spread);
-                        let vy = vy + macroquad::rand::gen_range(-spread, spread);
-                        let len = (vx * vx + vy * vy).sqrt();
+            if (x0 - x) * (x0 - x) + (y0 - y) * (y0 - y) > (self.radius * self.radius) {
+                destroying = false;
+            }
 
-                        let (vx, vy) = if len > 0.0 {
-                            (vx / len, vy / len)
-                        } else {
-                            (0.0, 0.0)
-                        };
+            if destroying {
+                if cell.material != MaterialID::Empty {
+                    if power > 0.0 {
+                        if rng::chance(0.3) {
+                            let spread = 100.0;
 
-                        grid.add_particle(x, y, 5.0 * vx, 5.0 * vy, MaterialID::Fire);
+                            let vy = (y1 - y0) as f32;
+                            let vx = (x1 - x0) as f32;
+                            let vx = vx + macroquad::rand::gen_range(-spread, spread);
+                            let vy = vy + macroquad::rand::gen_range(-spread, spread);
+                            let len = (vx * vx + vy * vy).sqrt();
+
+                            let (vx, vy) = if len > 0.0 {
+                                (vx / len, vy / len)
+                            } else {
+                                (0.0, 0.0)
+                            };
+
+                            grid.add_particle(x, y, 3.0 * vx, 3.0 * vy, MaterialID::Fire);
+                        }
+                        if cell.material != Dynamite
+                            && cell.material != Fire
+                            && !cell
+                                .material
+                                .properties()
+                                .behavior
+                                .contains(Behavior::STATIC)
+                        {
+                            if rng::chance(0.9) {
+                                let spread = 100.0;
+
+                                let vy = (y1 - y0) as f32;
+                                let vx = (x1 - x0) as f32;
+                                let vx = vx + macroquad::rand::gen_range(-spread, spread);
+                                let vy = vy + macroquad::rand::gen_range(-spread, spread);
+                                let len = (vx * vx + vy * vy).sqrt();
+
+                                let (vx, vy) = if len > 0.0 {
+                                    (vx / len, vy / len)
+                                } else {
+                                    (0.0, 0.0)
+                                };
+
+                                grid.add_particle(x, y, 5.0 * vx, 5.0 * vy, cell.material);
+                            }
+                        }
+                        grid.create(x, y, MaterialID::Fire);
                     }
+                }
+            } else {
+                if rng::chance(0.1) {
+                    break;
+                }
+                if grid
+                    .get(x, y)
+                    .material
+                    .properties()
+                    .behavior
+                    .contains(Behavior::POWDER)
+                    | grid
+                        .get(x, y)
+                        .material
+                        .properties()
+                        .behavior
+                        .contains(Behavior::STATIC)
+                {
+                    grid.set_stain(
+                        x,
+                        y,
+                        Some(Stain {
+                            kind: stains::StainKind::Charred,
+                            intensity: 0.5,
+                            timer: 50.0,
+                        }),
+                    );
                 }
             }
             if x == x1 && y == y1 {
@@ -138,7 +197,7 @@ impl RayTracedExplosion {
 }
 impl Explosion for RayTracedExplosion {
     fn detonate(&self, grid: &mut Grid, x: i32, y: i32) {
-        let r = self.radius;
+        let r = self.radius * 2;
         for dy in -r..=r {
             for dx in -r..=r {
                 if dx.abs() == r || dy.abs() == r {
