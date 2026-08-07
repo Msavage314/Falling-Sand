@@ -198,7 +198,7 @@ impl Grid {
         }
     }
 
-    fn mark_updated(&mut self, x: i32, y: i32) {
+    pub fn mark_updated(&mut self, x: i32, y: i32) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }

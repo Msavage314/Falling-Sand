@@ -2,6 +2,7 @@ use crate::cell::Cell;
 use crate::explosion::AcidExplosion;
 use crate::explosion::Explosion;
 use crate::explosion::FireExplosion;
+use crate::explosion::RayTracedExplosion;
 use crate::materials::Behavior;
 use crate::materials::MATERIAL_COUNT;
 use crate::materials::MaterialID;
@@ -495,10 +496,9 @@ pub static REACTIONS: &[Reaction] = &[
         output_a: None,
         output_b: Some(ReactionOutcome {
             apply_fn: |_a, _b| Product::Explosion {
-                source: Arc::new(FireExplosion {
-                    radius: 30,
-                    particle_chance: 0.4,
-                    velocity: 5.0,
+                source: Arc::new(RayTracedExplosion {
+                    radius: 100,
+                    power: 100.0,
                 }),
                 x_offset: 0,
                 y_offset: 0,

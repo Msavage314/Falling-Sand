@@ -239,6 +239,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
             behavior: Behavior::STATIC,
             density: 0.9,
             color: |x, y| vary_color(Color::new(0.2, 0.2, 0.2, 1.0), 0.05, x, y),
+            explosion_resistance: 1000.0,
             ..Default::default()
         },
         /* FlammableGas */
@@ -333,6 +334,7 @@ pub struct MaterialProperties {
     pub wake_chance: f32, // chance that the cell comes "awake"
 
     pub cools_to: MaterialID, // What the material turns into upon contact with something cool. Defaults to empty. For example, lava turns to stone
+    pub explosion_resistance: f32,
 }
 
 impl Default for MaterialProperties {
@@ -349,6 +351,7 @@ impl Default for MaterialProperties {
             acid_resistance: 0.0,
             wake_chance: 1.0,
             cools_to: MaterialID::Empty,
+            explosion_resistance: 1.0,
         }
     }
 }
