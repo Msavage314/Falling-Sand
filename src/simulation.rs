@@ -7,6 +7,7 @@ use crate::particle::Particle;
 use crate::reaction;
 use crate::reaction::Product;
 use crate::rng;
+use crate::rng::chance;
 use crate::stains::Stain;
 use crate::stains::StainKind;
 use egui_macroquad::egui::vec2;
@@ -329,15 +330,18 @@ impl Grid {
                 {
                     let mut changed = false;
                     if let Some(oa) = reaction.output_a {
-                        changed |= self.apply_product(x, y, (oa.apply_fn)(cell, other))
+                        if self.apply_product(x, y, (oa.apply_fn)(cell, other)) {
+                            self.mark_updated(x, y);
+                            changed |= true;
+                        }
                     }
                     if let Some(ob) = reaction.output_b {
-                        changed |= self.apply_product(cx, cy, (ob.apply_fn)(cell, other));
+                        if self.apply_product(cx, cy, (ob.apply_fn)(cell, other)) {
+                            self.mark_updated(cx, cy);
+                            changed |= true;
+                        }
                     }
-
                     if changed {
-                        self.mark_updated(x, y);
-                        self.mark_updated(cx, cy);
                         return;
                     }
                 }

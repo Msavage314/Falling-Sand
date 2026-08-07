@@ -3,7 +3,7 @@ use macroquad::color::Color;
 use std::sync::LazyLock;
 use strum_macros::EnumIter;
 
-pub const MATERIAL_COUNT: usize = 22;
+pub const MATERIAL_COUNT: usize = 25;
 
 bitflags! {
     #[derive(Debug,Clone,Copy,PartialEq )]
@@ -57,6 +57,9 @@ pub enum MaterialID {
     Coal,
     ToxicSludge,
     Gunpowder,
+    Nitro,
+    Dynamite,
+    Methane,
 }
 impl MaterialID {
     /// Returns a `MaterialProperties` struct of the properties associated with the materialID
@@ -283,6 +286,30 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
             color: |x, y| vary_color(Color::from_rgba(133, 133, 133, 255), 0.1, x, y),
             flow_distance: 5,
             acid_resistance: 0.4,
+            ..Default::default()
+        },
+        /* Nitro */
+        MaterialProperties {
+            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
+            density: 2.0,
+            color: |x, y| vary_color(Color::from_rgba(6, 92, 0, 255), 0.01, x, y),
+            flow_distance: 6,
+            acid_resistance: 0.4,
+            ..Default::default()
+        },
+        /* Dynamite */
+        MaterialProperties {
+            behavior: Behavior::STATIC | Behavior::CORRODIBLE,
+            density: 2.0,
+            color: |x, y| vary_color(Color::from_rgba(92, 24, 0, 255), 0.01, x, y),
+            acid_resistance: 0.4,
+            ..Default::default()
+        },
+        /* Methane */
+        MaterialProperties {
+            behavior: Behavior::GAS | Behavior::FLAMMABLE,
+            density: 0.1,
+            color: |x, y| Color::from_rgba(135, 135, 135, 255),
             ..Default::default()
         },
     ]

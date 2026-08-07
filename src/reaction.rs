@@ -1,6 +1,7 @@
 use crate::cell::Cell;
-use crate::explosion::CircleExplosion;
+use crate::explosion::AcidExplosion;
 use crate::explosion::Explosion;
+use crate::explosion::FireExplosion;
 use crate::materials::Behavior;
 use crate::materials::MATERIAL_COUNT;
 use crate::materials::MaterialID;
@@ -242,12 +243,14 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, b| {
-                Product::Stain(Stain {
+            apply_fn: |_a, b| match b.stain {
+                // Don't relight already burning cells. Causes small particles of wood to burn forever
+                None => Product::Stain(Stain {
                     kind: StainKind::Burning,
                     intensity: b.material.properties().burn_intensity,
                     timer: b.material.properties().burn_time,
-                })
+                }),
+                _ => Product::NoChange,
             },
         }),
         chance: 0.01,
@@ -460,9 +463,63 @@ pub static REACTIONS: &[Reaction] = &[
         output_a: None,
         output_b: Some(ReactionOutcome {
             apply_fn: |_a, _b| Product::Explosion {
-                source: Arc::new(CircleExplosion { radius: 20 }),
+                source: Arc::new(FireExplosion {
+                    radius: 3,
+                    particle_chance: 0.2,
+                    velocity: 3.0,
+                }),
                 x_offset: 0,
                 y_offset: 0,
+            },
+        }),
+        chance: 1.0,
+    },
+    Reaction {
+        a: Reactant::Behavior(Behavior::HOT),
+        b: Reactant::Material(MaterialID::Nitro),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Explosion {
+                source: Arc::new(AcidExplosion { radius: 15 }),
+                x_offset: 0,
+                y_offset: 0,
+            },
+        }),
+        chance: 1.0,
+    },
+    Reaction {
+        a: Reactant::Behavior(Behavior::HOT),
+        b: Reactant::Material(MaterialID::Dynamite),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Explosion {
+                source: Arc::new(FireExplosion {
+                    radius: 30,
+                    particle_chance: 0.4,
+                    velocity: 5.0,
+                }),
+                x_offset: 0,
+                y_offset: 0,
+            },
+        }),
+        chance: 1.0,
+    },
+    Reaction {
+        a: Reactant::Behavior(Behavior::HOT),
+        b: Reactant::Material(MaterialID::Methane),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Explosion {
+                source: Arc::new(FireExplosion {
+                    radius: 6,
+                    particle_chance: 0.01,
+                    velocity: 0.5,
+                }),
+                x_offset: 0,
+                y_offset: -1,
             },
         }),
         chance: 1.0,
