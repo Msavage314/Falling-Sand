@@ -1,21 +1,17 @@
-mod cell;
-mod config;
-mod explosion;
-mod materials;
-mod particle;
-mod reaction;
-mod render;
-mod rng;
-mod simulation;
-mod stains;
-mod ui;
+pub mod cell;
+pub mod config;
+pub mod explosion;
+pub mod materials;
+pub mod particle;
+pub mod reaction;
+pub mod render;
+pub mod rng;
+pub mod simulation;
+pub mod stains;
+pub mod ui;
 use macroquad::prelude::*;
 use materials::MaterialID;
 use simulation::Grid;
-use stains::Stain;
-use stains::StainKind;
-
-use crate::materials::MaterialID::Empty;
 
 #[macroquad::main("Falling Sand")]
 async fn main() {
@@ -58,6 +54,9 @@ async fn main() {
         }
         if is_key_pressed(KeyCode::Space) {
             ui.playing = !ui.playing
+        }
+        if is_key_pressed(KeyCode::Right) {
+            g.update(frame_count % 2 == 0);
         }
 
         egui_macroquad::draw();

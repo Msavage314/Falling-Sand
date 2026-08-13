@@ -27,7 +27,7 @@ impl UiState {
     }
     pub fn draw(&mut self, grid: &mut Grid) -> bool {
         let mut wants_pointer = false;
-        let (rx, ry, rw, _rh) = compute_grid_dest_rect(grid.width, grid.height);
+        let (_rx, _ry, rw, _rh) = compute_grid_dest_rect(grid.width, grid.height);
         let pixel_scale = rw / grid.width as f32;
         let (mx, my) = mouse_position();
 

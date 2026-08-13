@@ -49,6 +49,7 @@ pub enum Product {
     },
 }
 
+/// Represents the outcome of a react
 #[derive(Clone, Copy)]
 pub struct ReactionOutcome {
     pub apply_fn: fn(a: Cell, b: Cell) -> Product,
@@ -387,7 +388,7 @@ pub static REACTIONS: &[Reaction] = &[
     },
     Reaction {
         a: Reactant::Material(MaterialID::ToxicSludge),
-        b: Reactant::Behavior(Behavior::POWDER.union(Behavior::STATIC)),
+        b: Reactant::Behavior(Behavior::POWDER),
 
         output_a: None,
         output_b: Some(ReactionOutcome {
@@ -398,7 +399,7 @@ pub static REACTIONS: &[Reaction] = &[
                     Product::Stain(Stain {
                         kind: StainKind::Toxic,
                         intensity: 1.0,
-                        timer: 1.0,
+                        timer: 100.0,
                     })
                 }
             },
@@ -539,3 +540,68 @@ pub static REACTIONS_BY_MATERIAL: LazyLock<[Vec<&'static Reaction>; MATERIAL_COU
                 .collect()
         })
     });
+
+#[cfg(test)]
+mod tests {
+    use macroquad::prelude::Color;
+
+    use super::*;
+
+    #[test]
+    fn material_reactant_matches() {
+        let r = Reactant::Material(MaterialID::Salt);
+        assert!(r.matches(Cell {
+            material: MaterialID::Salt,
+            stain: None,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }));
+        assert!(!r.matches(Cell {
+            material: MaterialID::Water,
+            stain: None,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }))
+    }
+    #[test]
+    fn stain_reactant_matches() {
+        let r = Reactant::Stain(StainKind::Burning);
+        assert!(r.matches(Cell {
+            material: MaterialID::Water,
+            stain: Some(Stain {
+                kind: StainKind::Burning,
+                intensity: 1.0,
+                timer: 1.0
+            }),
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }));
+        assert!(!r.matches(Cell {
+            material: MaterialID::Water,
+            stain: None,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }))
+    }
+    #[test]
+    fn behavior_reactant_matches() {
+        let r = Reactant::Behavior(Behavior::HOT);
+        assert!(r.matches(Cell {
+            material: MaterialID::Fire,
+            stain: None,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }));
+
+        assert!(r.matches(Cell {
+            material: MaterialID::Wood,
+            stain: Some(Stain {
+                kind: StainKind::Burning,
+                intensity: 1.0,
+                timer: 1.0
+            }),
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }));
+    }
+}

@@ -2,12 +2,10 @@ use crate::cell::Cell;
 use crate::config::GRAVITY;
 use crate::materials::Behavior;
 use crate::materials::MaterialID;
-use crate::materials::MaterialID::Fire;
 use crate::particle::Particle;
 use crate::reaction;
 use crate::reaction::Product;
 use crate::rng;
-use crate::rng::chance;
 use crate::stains::Stain;
 use crate::stains::StainKind;
 use egui_macroquad::egui::vec2;
@@ -428,27 +426,6 @@ impl Grid {
                 }
             }
         }
-    }
-
-    fn compute_grid_dest_rect(&mut self) -> (f32, f32, f32, f32) {
-        let grid_aspect = self.width as f32 / self.height as f32;
-        let screen_aspect = screen_width() / screen_height();
-
-        let (w, h) = if screen_aspect > grid_aspect {
-            // window wider than grid -> letterbox left/right
-            let h = screen_height();
-            let w = h * grid_aspect;
-            (w, h)
-        } else {
-            // window taller than grid -> letterbox top/bottom
-            let w = screen_width();
-            let h = w / grid_aspect;
-            (w, h)
-        };
-
-        let x = (screen_width() - w) * 0.5;
-        let y = (screen_height() - h) * 0.5;
-        return (x, y, w, h);
     }
 
     pub fn draw_brush(&mut self, cx: i32, cy: i32, radius: i32, material: MaterialID) {
