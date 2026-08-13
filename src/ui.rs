@@ -104,6 +104,7 @@ impl UiState {
                     }
                 }
                 ui.separator();
+                ui.checkbox(&mut self.draw_chunk_debug, "Chunk Debug");
                 ui.heading("Config");
                 ui.separator();
                 ui.label("Border Material");
