@@ -1,6 +1,8 @@
 use crate::cell::Cell;
-use crate::explosion::CircleExplosion;
+use crate::explosion::AcidExplosion;
 use crate::explosion::Explosion;
+use crate::explosion::FireExplosion;
+use crate::explosion::RayTracedExplosion;
 use crate::materials::Behavior;
 use crate::materials::MATERIAL_COUNT;
 use crate::materials::MaterialID;
@@ -47,6 +49,7 @@ pub enum Product {
     },
 }
 
+/// Represents the outcome of a react
 #[derive(Clone, Copy)]
 pub struct ReactionOutcome {
     pub apply_fn: fn(a: Cell, b: Cell) -> Product,
@@ -242,12 +245,14 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: None,
         output_b: Some(ReactionOutcome {
-            apply_fn: |_a, b| {
-                Product::Stain(Stain {
+            apply_fn: |_a, b| match b.stain {
+                // Don't relight already burning cells. Causes small particles of wood to burn forever
+                None => Product::Stain(Stain {
                     kind: StainKind::Burning,
                     intensity: b.material.properties().burn_intensity,
                     timer: b.material.properties().burn_time,
-                })
+                }),
+                _ => Product::NoChange,
             },
         }),
         chance: 0.01,
@@ -383,7 +388,7 @@ pub static REACTIONS: &[Reaction] = &[
     },
     Reaction {
         a: Reactant::Material(MaterialID::ToxicSludge),
-        b: Reactant::Behavior(Behavior::POWDER.union(Behavior::STATIC)),
+        b: Reactant::Behavior(Behavior::POWDER),
 
         output_a: None,
         output_b: Some(ReactionOutcome {
@@ -394,7 +399,7 @@ pub static REACTIONS: &[Reaction] = &[
                     Product::Stain(Stain {
                         kind: StainKind::Toxic,
                         intensity: 1.0,
-                        timer: 1.0,
+                        timer: 100.0,
                     })
                 }
             },
@@ -460,9 +465,62 @@ pub static REACTIONS: &[Reaction] = &[
         output_a: None,
         output_b: Some(ReactionOutcome {
             apply_fn: |_a, _b| Product::Explosion {
-                source: Arc::new(CircleExplosion { radius: 20 }),
+                source: Arc::new(FireExplosion {
+                    radius: 3,
+                    particle_chance: 0.2,
+                    velocity: 3.0,
+                }),
                 x_offset: 0,
                 y_offset: 0,
+            },
+        }),
+        chance: 1.0,
+    },
+    Reaction {
+        a: Reactant::Behavior(Behavior::HOT),
+        b: Reactant::Material(MaterialID::Nitro),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Explosion {
+                source: Arc::new(AcidExplosion { radius: 15 }),
+                x_offset: 0,
+                y_offset: 0,
+            },
+        }),
+        chance: 1.0,
+    },
+    Reaction {
+        a: Reactant::Behavior(Behavior::HOT),
+        b: Reactant::Material(MaterialID::Dynamite),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Explosion {
+                source: Arc::new(RayTracedExplosion {
+                    radius: 100,
+                    power: 100.0,
+                }),
+                x_offset: 0,
+                y_offset: 0,
+            },
+        }),
+        chance: 1.0,
+    },
+    Reaction {
+        a: Reactant::Behavior(Behavior::HOT),
+        b: Reactant::Material(MaterialID::Methane),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Explosion {
+                source: Arc::new(FireExplosion {
+                    radius: 6,
+                    particle_chance: 0.01,
+                    velocity: 0.5,
+                }),
+                x_offset: 0,
+                y_offset: -1,
             },
         }),
         chance: 1.0,
@@ -482,3 +540,68 @@ pub static REACTIONS_BY_MATERIAL: LazyLock<[Vec<&'static Reaction>; MATERIAL_COU
                 .collect()
         })
     });
+
+#[cfg(test)]
+mod tests {
+    use macroquad::prelude::Color;
+
+    use super::*;
+
+    #[test]
+    fn material_reactant_matches() {
+        let r = Reactant::Material(MaterialID::Salt);
+        assert!(r.matches(Cell {
+            material: MaterialID::Salt,
+            stain: None,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }));
+        assert!(!r.matches(Cell {
+            material: MaterialID::Water,
+            stain: None,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }))
+    }
+    #[test]
+    fn stain_reactant_matches() {
+        let r = Reactant::Stain(StainKind::Burning);
+        assert!(r.matches(Cell {
+            material: MaterialID::Water,
+            stain: Some(Stain {
+                kind: StainKind::Burning,
+                intensity: 1.0,
+                timer: 1.0
+            }),
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }));
+        assert!(!r.matches(Cell {
+            material: MaterialID::Water,
+            stain: None,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }))
+    }
+    #[test]
+    fn behavior_reactant_matches() {
+        let r = Reactant::Behavior(Behavior::HOT);
+        assert!(r.matches(Cell {
+            material: MaterialID::Fire,
+            stain: None,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }));
+
+        assert!(r.matches(Cell {
+            material: MaterialID::Wood,
+            stain: Some(Stain {
+                kind: StainKind::Burning,
+                intensity: 1.0,
+                timer: 1.0
+            }),
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            awake: false
+        }));
+    }
+}

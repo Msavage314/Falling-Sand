@@ -6,3 +6,6 @@ pub const BORDER_OPTIONS: [MaterialID; 2] = [MaterialID::Empty, MaterialID::Dens
 
 pub const WIDTH: usize = 400;
 pub const HEIGHT: usize = 300;
+
+// Cells per tick per tick of acceleration
+pub const GRAVITY: f32 = 0.1;
