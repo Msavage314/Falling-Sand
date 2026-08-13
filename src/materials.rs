@@ -290,7 +290,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         /* Nitro */
         MaterialProperties {
             behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
-            density: 2.0,
+            density: 1.0,
             color: |x, y| vary_color(Color::from_rgba(6, 92, 0, 255), 0.01, x, y),
             flow_distance: 6,
             acid_resistance: 0.4,
