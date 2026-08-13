@@ -8,7 +8,7 @@ pub const WIDTH: usize = 384;
 pub const HEIGHT: usize = 320;
 
 // Must divide into width and height
-pub const CHUNK_SIZE: usize = 64;
+pub const CHUNK_SIZE: usize = 16;
 
 // Cells per tick per tick of acceleration
 pub const GRAVITY: f32 = 0.1;
