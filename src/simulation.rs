@@ -373,25 +373,32 @@ impl Grid {
         for (cx, cy) in self.get_neighbors(x, y) {
             let other = self.get(cx, cy);
             for reaction in &reaction::REACTIONS_BY_MATERIAL[cell.material as usize] {
-                if reaction.a.matches(cell)
-                    && reaction.b.matches(other)
-                    && rng::chance(reaction.chance)
-                {
-                    let mut changed = false;
-                    if let Some(oa) = reaction.output_a {
-                        if self.apply_product(x, y, (oa.apply_fn)(cell, other)) {
-                            self.mark_updated(x, y);
-                            changed |= true;
-                        }
+                if reaction.a.matches(cell) && reaction.b.matches(other) {
+                    // Keep both chunks updated if a reaction could occur. Because some reactions are down to rng, nothing could happen in an entire chunk for a whole frame,
+                    // so this prevents the chunk going to "sleep"
+                    if let Some(idx) = self.chunk_index(x, y) {
+                        self.chunks_need_update[idx] = true;
                     }
-                    if let Some(ob) = reaction.output_b {
-                        if self.apply_product(cx, cy, (ob.apply_fn)(cell, other)) {
-                            self.mark_updated(cx, cy);
-                            changed |= true;
-                        }
+                    if let Some(idx) = self.chunk_index(cx, cy) {
+                        self.chunks_need_update[idx] = true;
                     }
-                    if changed {
-                        return;
+                    if rng::chance(reaction.chance) {
+                        let mut changed = false;
+                        if let Some(oa) = reaction.output_a {
+                            if self.apply_product(x, y, (oa.apply_fn)(cell, other)) {
+                                self.mark_updated(x, y);
+                                changed |= true;
+                            }
+                        }
+                        if let Some(ob) = reaction.output_b {
+                            if self.apply_product(cx, cy, (ob.apply_fn)(cell, other)) {
+                                self.mark_updated(cx, cy);
+                                changed |= true;
+                            }
+                        }
+                        if changed {
+                            return;
+                        }
                     }
                 }
             }
