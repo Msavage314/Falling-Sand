@@ -10,6 +10,8 @@ pub struct UiState {
     pub playing: bool,
     cached_total: i32,
     cached_counts: HashMap<MaterialID, i32>,
+    draw_chunk_debug: bool,
+    fps: i32,
 }
 impl UiState {
     pub fn new() -> Self {
@@ -19,12 +21,16 @@ impl UiState {
             playing: true,
             cached_total: 0,
             cached_counts: HashMap::new(),
+            draw_chunk_debug: true,
+            fps: 0,
         };
     }
     pub fn refresh_cache(&mut self, grid: &mut Grid) {
         self.cached_total = grid.total_alive();
         self.cached_counts = grid.count_by_material();
+        self.fps = get_fps()
     }
+
     pub fn draw(&mut self, grid: &mut Grid) -> bool {
         let mut wants_pointer = false;
         let (_rx, _ry, rw, _rh) = compute_grid_dest_rect(grid.width, grid.height);
@@ -45,6 +51,9 @@ impl UiState {
                 self.draw_current_window(egui_ctx, grid);
             }
         });
+        if self.draw_chunk_debug {
+            self.draw_chunk_debug(grid);
+        }
 
         return wants_pointer;
     }
@@ -83,7 +92,7 @@ impl UiState {
             .exact_width(panel_width)
             .show(egui_ctx, |ui| {
                 ui.heading("Debug");
-                ui.label(format!("FPS: {}", get_fps()));
+                ui.label(format!("FPS: {}", self.fps));
                 ui.separator();
                 ui.label(format!("Total cells alive = {}", self.cached_total));
 
@@ -133,6 +142,31 @@ impl UiState {
             ui.label(format!("Current Status: {:?}", grid.get(gx, gy).awake));
             ui.label(format!("Current Position: ({:?},{:?})", gx, gy))
         });
+    }
+    fn draw_chunk_debug(&mut self, grid: &mut Grid) {
+        let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
+        let scale_x = rw / grid.width as f32;
+        let scale_y = rh / grid.height as f32;
+
+        for cy in 0..grid.chunks_y {
+            for cx in 0..grid.chunks_x {
+                let idx = cy * grid.chunks_x + cx;
+                let active = grid.chunks_need_update[idx];
+
+                let px = rx + (cx * grid.chunk_size) as f32 * scale_x;
+                let py = ry + (cy * grid.chunk_size) as f32 * scale_y;
+
+                let pw = grid.chunk_size as f32 * scale_x;
+                let ph = grid.chunk_size as f32 * scale_y;
+
+                let color = if active {
+                    Color::new(1.0, 0.2, 0.2, 0.5)
+                } else {
+                    Color::new(0.2, 0.2, 0.2, 0.15)
+                };
+                draw_rectangle_lines(px, py, pw, ph, 10.0, color);
+            }
+        }
     }
 }
 pub fn compute_grid_dest_rect(width: usize, height: usize) -> (f32, f32, f32, f32) {
