@@ -157,7 +157,9 @@ impl Grid {
         self.cells[y as usize * self.width + x as usize].stain = stain;
     }
 
-    fn can_density_swap(&mut self, cell_a: Cell, cell_b: Cell, falling: bool) -> bool {
+    fn can_density_swap(&mut self, x: i32, y: i32, x1: i32, y1: i32, falling: bool) -> bool {
+        let cell_a = self.get(x, y);
+        let cell_b = self.get(x1, y1);
         let mat_a = cell_a.material;
         let mat_b = cell_b.material;
 
@@ -166,6 +168,7 @@ impl Grid {
         {
             return false;
         }
+
         if mat_a != MaterialID::Empty && mat_b != MaterialID::Empty {
             if !(mat_a.properties().behavior.contains(Behavior::FLOWS))
                 && !(mat_b.properties().behavior.contains(Behavior::FLOWS))
@@ -190,7 +193,14 @@ impl Grid {
             .max(mat_b.properties().density)
             .max(0.01);
         let chance = diff.abs() / denom;
-
+        if chance > 0.0 {
+            if let Some(idx) = self.chunk_index(x, y) {
+                self.chunks_need_update[idx] = true;
+            }
+            if let Some(idx) = self.chunk_index(x1, y1) {
+                self.chunks_need_update[idx] = true;
+            }
+        }
         return rng::chance(chance);
     }
 
@@ -207,9 +217,8 @@ impl Grid {
 
         for d in 1..=max_dist {
             let nx = x + dir * d;
-            let other = self.get(nx, y);
 
-            if self.can_density_swap(cell, other, falling) {
+            if self.can_density_swap(x, y, nx, y, falling) {
                 target = Some(nx);
             } else {
                 break;
@@ -405,13 +414,13 @@ impl Grid {
         }
 
         if cell.behaviors().contains(Behavior::FALLS) {
-            if self.can_density_swap(self.get(x, y), self.get(x, y + 1), true) {
+            if self.can_density_swap(x, y, x, y + 1, true) {
                 self.swap_cells(x, y, x, y + 1);
                 return;
             }
         }
         if cell.behaviors().contains(Behavior::RISES) {
-            if self.can_density_swap(self.get(x, y), self.get(x, y - 1), false) {
+            if self.can_density_swap(x, y, x, y - 1, false) {
                 self.swap_cells(x, y, x, y - 1);
                 return;
             }
@@ -419,23 +428,23 @@ impl Grid {
         if cell.behaviors().contains(Behavior::GRANULAR) && cell.awake {
             if rng::chance(0.5) {
                 let other = self.get(x + 1, y + 1);
-                if self.can_density_swap(cell, other, true) {
+                if self.can_density_swap(x, y, x + 1, y + 1, true) {
                     self.swap_cells(x, y, x + 1, y + 1);
                     return;
                 }
                 let other = self.get(x - 1, y + 1);
-                if self.can_density_swap(cell, other, true) {
+                if self.can_density_swap(x, y, x - 1, y + 1, true) {
                     self.swap_cells(x, y, x - 1, y + 1);
                     return;
                 }
             } else {
                 let other = self.get(x - 1, y + 1);
-                if self.can_density_swap(cell, other, true) {
+                if self.can_density_swap(x, y, x - 1, y + 1, true) {
                     self.swap_cells(x, y, x - 1, y + 1);
                     return;
                 }
                 let other = self.get(x + 1, y + 1);
-                if self.can_density_swap(cell, other, true) {
+                if self.can_density_swap(x, y, x + 1, y + 1, true) {
                     self.swap_cells(x, y, x + 1, y + 1);
                     return;
                 }
