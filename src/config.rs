@@ -4,8 +4,11 @@ use crate::materials::MaterialID;
 /// `DenseRock` results in sand stopping at the edge, whereas `Empty` makes it fall offscreen
 pub const BORDER_OPTIONS: [MaterialID; 2] = [MaterialID::Empty, MaterialID::DenseRock];
 
-pub const WIDTH: usize = 400;
-pub const HEIGHT: usize = 300;
+pub const WIDTH: usize = 384;
+pub const HEIGHT: usize = 320;
+
+// Must divide into width and height
+pub const CHUNK_SIZE: usize = 16;
 
 // Cells per tick per tick of acceleration
 pub const GRAVITY: f32 = 0.1;

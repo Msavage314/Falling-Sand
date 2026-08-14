@@ -26,9 +26,16 @@ pub struct Grid {
     updated: Vec<bool>,
     /// Material returned for any coordinate outside the grid bounds.
     pub border: MaterialID,
+
+    pub chunk_size: usize,
+    /// For each chunk, whether it needs to be updated on the next frame.
+    pub chunks_need_update: Vec<bool>,
+
+    pub chunks_x: usize,
+    pub chunks_y: usize,
 }
 impl Grid {
-    pub fn new(width: usize, height: usize, border: MaterialID) -> Self {
+    pub fn new(width: usize, height: usize, border: MaterialID, chunk_size: usize) -> Self {
         return Grid {
             width: width,
             height: height,
@@ -44,6 +51,10 @@ impl Grid {
             particles: vec![],
             updated: vec![false; width * height],
             border,
+            chunk_size,
+            chunks_need_update: vec![false; width / chunk_size * height / chunk_size],
+            chunks_x: width / chunk_size,
+            chunks_y: height / chunk_size,
         };
     }
 
@@ -84,6 +95,19 @@ impl Grid {
             }
         }
     }
+    pub fn chunk_of(&self, x: i32, y: i32) -> Option<(usize, usize)> {
+        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+            return None;
+        }
+        let cx = x as usize / self.chunk_size;
+        let cy = y as usize / self.chunk_size;
+        Some((cx, cy))
+    }
+    pub fn chunk_index(&self, x: i32, y: i32) -> Option<usize> {
+        let (cx, cy) = self.chunk_of(x, y)?;
+        Some(cy * self.chunks_x + cx)
+    }
+
     pub fn clear(&mut self) {
         self.cells = vec![
             Cell {
@@ -115,6 +139,9 @@ impl Grid {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
+        if let Some(idx) = self.chunk_index(x, y) {
+            self.chunks_need_update[idx] = true;
+        }
         self.cells[y as usize * self.width + x as usize] = Cell {
             material,
             stain: None,
@@ -130,7 +157,9 @@ impl Grid {
         self.cells[y as usize * self.width + x as usize].stain = stain;
     }
 
-    fn can_density_swap(&mut self, cell_a: Cell, cell_b: Cell, falling: bool) -> bool {
+    fn can_density_swap(&mut self, x: i32, y: i32, x1: i32, y1: i32, falling: bool) -> bool {
+        let cell_a = self.get(x, y);
+        let cell_b = self.get(x1, y1);
         let mat_a = cell_a.material;
         let mat_b = cell_b.material;
 
@@ -139,6 +168,7 @@ impl Grid {
         {
             return false;
         }
+
         if mat_a != MaterialID::Empty && mat_b != MaterialID::Empty {
             if !(mat_a.properties().behavior.contains(Behavior::FLOWS))
                 && !(mat_b.properties().behavior.contains(Behavior::FLOWS))
@@ -163,7 +193,14 @@ impl Grid {
             .max(mat_b.properties().density)
             .max(0.01);
         let chance = diff.abs() / denom;
-
+        if chance > 0.0 {
+            if let Some(idx) = self.chunk_index(x, y) {
+                self.chunks_need_update[idx] = true;
+            }
+            if let Some(idx) = self.chunk_index(x1, y1) {
+                self.chunks_need_update[idx] = true;
+            }
+        }
         return rng::chance(chance);
     }
 
@@ -180,9 +217,8 @@ impl Grid {
 
         for d in 1..=max_dist {
             let nx = x + dir * d;
-            let other = self.get(nx, y);
 
-            if self.can_density_swap(cell, other, falling) {
+            if self.can_density_swap(x, y, nx, y, falling) {
                 target = Some(nx);
             } else {
                 break;
@@ -201,9 +237,14 @@ impl Grid {
             return;
         }
         let idx = y as usize * self.width + x as usize;
-        self.updated[idx] = true
-    }
+        self.updated[idx] = true;
 
+        if let Some(chunk_idx) = self.chunk_index(x, y) {
+            self.chunks_need_update[chunk_idx] = true;
+            // also wake neighboring chunks so motion crossing a chunk boundary isn't missed
+            self.wake_neighbor_chunks(x, y);
+        }
+    }
     fn swap_cells(&mut self, x1: i32, y1: i32, x2: i32, y2: i32) {
         let a = self.get(x1, y1);
         let b = self.get(x2, y2);
@@ -221,6 +262,25 @@ impl Grid {
     fn get_neighbors(&mut self, x: i32, y: i32) -> [(i32, i32); 4] {
         let neighbors = [(0, -1), (1, 0), (0, 1), (-1, 0)];
         return neighbors.map(|c| (c.0 + x, c.1 + y));
+    }
+    fn wake_neighbor_chunks(&mut self, x: i32, y: i32) {
+        let local_x = x as usize % self.chunk_size;
+        let local_y = y as usize % self.chunk_size;
+        let (cx, cy) = self.chunk_of(x, y).unwrap();
+
+        // if the cell is on a chunk edge, wake the adjacent chunk too
+        if local_x == 0 && cx > 0 {
+            self.chunks_need_update[cy * self.chunks_x + (cx - 1)] = true;
+        }
+        if local_x == self.chunk_size - 1 && cx + 1 < self.chunks_x {
+            self.chunks_need_update[cy * self.chunks_x + (cx + 1)] = true;
+        }
+        if local_y == 0 && cy > 0 {
+            self.chunks_need_update[(cy - 1) * self.chunks_x + cx] = true;
+        }
+        if local_y == self.chunk_size - 1 && cy + 1 < self.chunks_y {
+            self.chunks_need_update[(cy + 1) * self.chunks_x + cx] = true;
+        }
     }
 
     fn update_stain(&mut self, x: i32, y: i32) {
@@ -322,38 +382,45 @@ impl Grid {
         for (cx, cy) in self.get_neighbors(x, y) {
             let other = self.get(cx, cy);
             for reaction in &reaction::REACTIONS_BY_MATERIAL[cell.material as usize] {
-                if reaction.a.matches(cell)
-                    && reaction.b.matches(other)
-                    && rng::chance(reaction.chance)
-                {
-                    let mut changed = false;
-                    if let Some(oa) = reaction.output_a {
-                        if self.apply_product(x, y, (oa.apply_fn)(cell, other)) {
-                            self.mark_updated(x, y);
-                            changed |= true;
-                        }
+                if reaction.a.matches(cell) && reaction.b.matches(other) {
+                    // Keep both chunks updated if a reaction could occur. Because some reactions are down to rng, nothing could happen in an entire chunk for a whole frame,
+                    // so this prevents the chunk going to "sleep"
+                    if let Some(idx) = self.chunk_index(x, y) {
+                        self.chunks_need_update[idx] = true;
                     }
-                    if let Some(ob) = reaction.output_b {
-                        if self.apply_product(cx, cy, (ob.apply_fn)(cell, other)) {
-                            self.mark_updated(cx, cy);
-                            changed |= true;
-                        }
+                    if let Some(idx) = self.chunk_index(cx, cy) {
+                        self.chunks_need_update[idx] = true;
                     }
-                    if changed {
-                        return;
+                    if rng::chance(reaction.chance) {
+                        let mut changed = false;
+                        if let Some(oa) = reaction.output_a {
+                            if self.apply_product(x, y, (oa.apply_fn)(cell, other)) {
+                                self.mark_updated(x, y);
+                                changed |= true;
+                            }
+                        }
+                        if let Some(ob) = reaction.output_b {
+                            if self.apply_product(cx, cy, (ob.apply_fn)(cell, other)) {
+                                self.mark_updated(cx, cy);
+                                changed |= true;
+                            }
+                        }
+                        if changed {
+                            return;
+                        }
                     }
                 }
             }
         }
 
         if cell.behaviors().contains(Behavior::FALLS) {
-            if self.can_density_swap(self.get(x, y), self.get(x, y + 1), true) {
+            if self.can_density_swap(x, y, x, y + 1, true) {
                 self.swap_cells(x, y, x, y + 1);
                 return;
             }
         }
         if cell.behaviors().contains(Behavior::RISES) {
-            if self.can_density_swap(self.get(x, y), self.get(x, y - 1), false) {
+            if self.can_density_swap(x, y, x, y - 1, false) {
                 self.swap_cells(x, y, x, y - 1);
                 return;
             }
@@ -361,23 +428,23 @@ impl Grid {
         if cell.behaviors().contains(Behavior::GRANULAR) && cell.awake {
             if rng::chance(0.5) {
                 let other = self.get(x + 1, y + 1);
-                if self.can_density_swap(cell, other, true) {
+                if self.can_density_swap(x, y, x + 1, y + 1, true) {
                     self.swap_cells(x, y, x + 1, y + 1);
                     return;
                 }
                 let other = self.get(x - 1, y + 1);
-                if self.can_density_swap(cell, other, true) {
+                if self.can_density_swap(x, y, x - 1, y + 1, true) {
                     self.swap_cells(x, y, x - 1, y + 1);
                     return;
                 }
             } else {
                 let other = self.get(x - 1, y + 1);
-                if self.can_density_swap(cell, other, true) {
+                if self.can_density_swap(x, y, x - 1, y + 1, true) {
                     self.swap_cells(x, y, x - 1, y + 1);
                     return;
                 }
                 let other = self.get(x + 1, y + 1);
-                if self.can_density_swap(cell, other, true) {
+                if self.can_density_swap(x, y, x + 1, y + 1, true) {
                     self.swap_cells(x, y, x + 1, y + 1);
                     return;
                 }
@@ -413,17 +480,49 @@ impl Grid {
     pub fn update(&mut self, left: bool) {
         self.updated.fill(false);
         self.update_particles();
+
+        // snapshot which chunks were active, then clear for this frame's marks
+        let active_chunks = std::mem::replace(
+            &mut self.chunks_need_update,
+            vec![false; self.chunks_x * self.chunks_y],
+        );
         for y in (0..self.height).rev() {
             if left {
                 for x in (0..self.width).rev() {
+                    let chunk_idx = self.chunk_index(x as i32, y as i32);
+                    if let Some(id) = chunk_idx {
+                        if !active_chunks[id] {
+                            continue;
+                        };
+                    }
                     self.update_cell(x as i32, y as i32);
                     self.update_stain(x as i32, y as i32);
                 }
             } else {
                 for x in 0..self.width {
+                    let chunk_idx = self.chunk_index(x as i32, y as i32);
+                    if let Some(id) = chunk_idx {
+                        if !active_chunks[id] {
+                            continue;
+                        };
+                    }
                     self.update_cell(x as i32, y as i32);
                     self.update_stain(x as i32, y as i32);
                 }
+            }
+        }
+
+        for cy in 0..self.chunks_y {
+            for cx in 0..self.chunks_x {
+                let chunk_idx = cy * self.chunks_x + cx;
+                if !active_chunks[chunk_idx] {
+                    continue;
+                }
+
+                let x_start = cx * self.chunk_size;
+                let x_end = (x_start + self.chunk_size).min(self.width);
+                let y_start = cy * self.chunk_size;
+                let y_end = (y_start + self.chunk_size).min(self.height);
             }
         }
     }

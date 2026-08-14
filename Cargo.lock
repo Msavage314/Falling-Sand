@@ -380,6 +380,7 @@ dependencies = [
  "bitflags 2.13.1",
  "egui-macroquad",
  "macroquad",
+ "macroquad-profiler",
  "rand",
  "strum",
  "strum_macros",
@@ -603,6 +604,15 @@ dependencies = [
  "miniquad",
  "quad-rand",
  "quad-snd",
+]
+
+[[package]]
+name = "macroquad-profiler"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a0f3792c62d2a730a25ca837bbbdfadc7df4a54033533b9a12489f809f325e5"
+dependencies = [
+ "macroquad",
 ]
 
 [[package]]
