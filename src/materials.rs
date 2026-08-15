@@ -1,7 +1,6 @@
 use bitflags::bitflags;
 use macroquad::color::Color;
 use serde::{Deserialize, Serialize};
-use std::sync::LazyLock;
 use strum_macros::EnumIter;
 
 pub const MATERIAL_COUNT: usize = 25;
@@ -68,252 +67,223 @@ impl MaterialID {
     /// let x = MaterialID::Empty
     /// println!("{}",x.properties().density)
     /// ```
-    pub fn properties(self) -> &'static MaterialProperties {
-        return &MATERIAL_TABLE[self as usize];
+    pub fn properties(self) -> MaterialProperties {
+        match self {
+            MaterialID::Empty => MaterialProperties {
+                behavior: Behavior::empty(),
+                density: 0.5,
+                color: |_x, _y| Color::new(0.05, 0.05, 0.05, 1.0),
+                ..Default::default()
+            },
+            MaterialID::Sand => MaterialProperties {
+                behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
+                density: 1.5,
+                color: |x, y| vary_color(Color::new(0.96, 0.82, 0.45, 1.0), 0.05, x, y),
+                lava_resistance: 0.8,
+                flammability: 0.0,
+                acid_resistance: 0.2,
+                wake_chance: 1.0,
+                ..Default::default()
+            },
+            MaterialID::Stone => MaterialProperties {
+                behavior: Behavior::STATIC | Behavior::MELTABLE | Behavior::CORRODIBLE,
+                density: 3.0,
+                color: |x, y| vary_color(Color::new(0.5, 0.5, 0.5, 1.0), 0.05, x, y),
+                lava_resistance: 0.05,
+                acid_resistance: 0.7,
+                ..Default::default()
+            },
+            MaterialID::Water => MaterialProperties {
+                behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
+                density: 1.0,
+                color: |x, y| vary_color(Color::new(0.1, 0.45, 0.82, 1.0), 0.01, x, y),
+                flow_distance: 5,
+                acid_resistance: 0.5,
+                ..Default::default()
+            },
+            MaterialID::Slime => MaterialProperties {
+                behavior: Behavior::LIQUID | Behavior::MELTABLE | Behavior::CORRODIBLE,
+                density: 1.3,
+                color: |x, y| vary_color(Color::new(0.8, 0.3, 0.8, 1.0), 0.05, x, y),
+                flow_distance: 3,
+                lava_resistance: 1.0,
+                acid_resistance: 0.9,
+                ..Default::default()
+            },
+            MaterialID::Salt => MaterialProperties {
+                behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
+                density: 1.5,
+                color: |x, y| vary_color(Color::new(0.9, 0.9, 1.0, 1.0), 0.05, x, y),
+                lava_resistance: 0.1,
+                acid_resistance: 0.7,
+                wake_chance: 0.4,
+                ..Default::default()
+            },
+            MaterialID::SaltWater => MaterialProperties {
+                behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
+                density: 1.1,
+                color: |_x, _y| Color::new(0.43, 0.77, 0.8, 1.0),
+                flow_distance: 3,
+                acid_resistance: 0.5,
+                ..Default::default()
+            },
+            MaterialID::Lava => MaterialProperties {
+                behavior: Behavior::LIQUID | Behavior::CORRODIBLE | Behavior::HOT,
+                density: 1.1,
+                color: |_x, _y| Color::new(0.95, 0.7, 0.0, 1.0),
+                flow_distance: 1,
+                acid_resistance: 0.3,
+                cools_to: MaterialID::Stone,
+                ..Default::default()
+            },
+            MaterialID::Steam => MaterialProperties {
+                behavior: Behavior::GAS | Behavior::CORRODIBLE,
+                density: 0.1,
+                color: |_x, _y| Color::new(0.9, 0.9, 0.9, 1.0),
+                flow_distance: 6,
+                acid_resistance: 0.1,
+                ..Default::default()
+            },
+            MaterialID::Dirt => MaterialProperties {
+                behavior: Behavior::POWDER
+                    | Behavior::MELTABLE
+                    | Behavior::CORRODIBLE
+                    | Behavior::PERMEABLE,
+                density: 1.7,
+                color: |x, y| vary_color(Color::new(0.35, 0.23, 0.16, 1.0), 0.05, x, y),
+                lava_resistance: 0.4,
+                acid_resistance: 0.5,
+                wake_chance: 0.3,
+                ..Default::default()
+            },
+            MaterialID::Snow => MaterialProperties {
+                behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
+                density: 1.7,
+                color: |x, y| vary_color(Color::new(0.9, 1.0, 1.0, 0.9), 0.02, x, y),
+                lava_resistance: 1.0,
+                acid_resistance: 0.0,
+                wake_chance: 0.05,
+                ..Default::default()
+            },
+            MaterialID::Oil => MaterialProperties {
+                behavior: Behavior::LIQUID | Behavior::FLAMMABLE | Behavior::CORRODIBLE,
+                density: 0.9,
+                color: |_x, _y| Color::new(0.14, 0.1, 0.05, 1.0),
+                flow_distance: 3,
+                flammability: 0.5,
+                burn_intensity: 2.0,
+                burn_time: 5.0,
+                acid_resistance: 0.1,
+                ..Default::default()
+            },
+            MaterialID::Wood => MaterialProperties {
+                behavior: Behavior::STATIC
+                    | Behavior::FLAMMABLE
+                    | Behavior::CORRODIBLE
+                    | Behavior::PERMEABLE,
+                density: 1.7,
+                color: |_x, _y| Color::from_rgba(74, 61, 38, 255),
+                flammability: 0.05,
+                burn_intensity: 1.0,
+                burn_time: 7.0,
+                acid_resistance: 0.2,
+                ..Default::default()
+            },
+            MaterialID::Fire => MaterialProperties {
+                behavior: Behavior::GAS | Behavior::HOT,
+                density: 0.1,
+                color: |_x, _y| Color::new(1.0, 0.5, 0.0, 1.0),
+                flow_distance: 1,
+                ..Default::default()
+            },
+            MaterialID::Smoke => MaterialProperties {
+                behavior: Behavior::GAS | Behavior::CORRODIBLE,
+                density: 0.1,
+                color: |_x, _y| Color::new(0.4, 0.4, 0.4, 1.0),
+                flow_distance: 2,
+                acid_resistance: 0.0,
+                ..Default::default()
+            },
+            MaterialID::Acid => MaterialProperties {
+                behavior: Behavior::LIQUID,
+                density: 0.9,
+                color: |_x, _y| Color::new(0.14, 0.74, 0.31, 1.0),
+                flow_distance: 4,
+                ..Default::default()
+            },
+            MaterialID::DenseRock => MaterialProperties {
+                behavior: Behavior::STATIC,
+                density: 0.9,
+                color: |x, y| vary_color(Color::new(0.2, 0.2, 0.2, 1.0), 0.05, x, y),
+                explosion_resistance: 1000.0,
+                ..Default::default()
+            },
+            MaterialID::FlammableGas => MaterialProperties {
+                behavior: Behavior::GAS | Behavior::FLAMMABLE,
+                density: 0.1,
+                color: |_x, _y| Color::new(0.2, 0.34, 0.11, 1.0),
+                flow_distance: 7,
+                flammability: 1.0,
+                burn_intensity: 5.0,
+                burn_time: 0.2,
+                ..Default::default()
+            },
+            MaterialID::Rainbow => MaterialProperties {
+                behavior: Behavior::POWDER,
+                density: 2.0,
+                color: |x, y| vary_color(rainbow_color(x, y), 0.1, x, y),
+                ..Default::default()
+            },
+            MaterialID::Coal => MaterialProperties {
+                behavior: Behavior::POWDER | Behavior::FLAMMABLE | Behavior::PERMEABLE,
+                density: 2.0,
+                color: |x, y| vary_color(Color::new(0.1, 0.1, 0.1, 1.0), 0.1, x, y),
+                flammability: 0.004,
+                burn_intensity: 1.0,
+                burn_time: 10.0,
+                wake_chance: 0.1,
+                ..Default::default()
+            },
+            MaterialID::ToxicSludge => MaterialProperties {
+                behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
+                density: 0.9,
+                color: |_x, _y| Color::from_rgba(107, 145, 19, 255),
+                flow_distance: 5,
+                acid_resistance: 0.4,
+                ..Default::default()
+            },
+            MaterialID::Gunpowder => MaterialProperties {
+                behavior: Behavior::POWDER | Behavior::CORRODIBLE,
+                density: 5.5,
+                color: |x, y| vary_color(Color::from_rgba(133, 133, 133, 255), 0.1, x, y),
+                flow_distance: 5,
+                acid_resistance: 0.4,
+                ..Default::default()
+            },
+            MaterialID::Nitro => MaterialProperties {
+                behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
+                density: 1.0,
+                color: |x, y| vary_color(Color::from_rgba(6, 92, 0, 255), 0.01, x, y),
+                flow_distance: 6,
+                acid_resistance: 0.4,
+                ..Default::default()
+            },
+            MaterialID::Dynamite => MaterialProperties {
+                behavior: Behavior::STATIC | Behavior::CORRODIBLE,
+                density: 2.0,
+                color: |x, y| vary_color(Color::from_rgba(92, 24, 0, 255), 0.01, x, y),
+                acid_resistance: 0.4,
+                ..Default::default()
+            },
+            MaterialID::Methane => MaterialProperties {
+                behavior: Behavior::GAS | Behavior::FLAMMABLE,
+                density: 0.1,
+                color: |_x, _y| Color::from_rgba(135, 135, 135, 255),
+                ..Default::default()
+            },
+        }
     }
 }
-
-pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = LazyLock::new(|| {
-    [
-        /* Empty */
-        MaterialProperties {
-            behavior: Behavior::empty(),
-            density: 0.5,
-            color: |_x, _y| Color::new(0.05, 0.05, 0.05, 1.0),
-            ..Default::default()
-        },
-        /* Sand  */
-        MaterialProperties {
-            behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
-            density: 1.5,
-            color: |x, y| vary_color(Color::new(0.96, 0.82, 0.45, 1.0), 0.05, x, y),
-            lava_resistance: 0.8,
-            flammability: 0.0,
-            acid_resistance: 0.2,
-            wake_chance: 1.0,
-            ..Default::default()
-        },
-        /* Stone */
-        MaterialProperties {
-            behavior: Behavior::STATIC | Behavior::MELTABLE | Behavior::CORRODIBLE,
-            density: 3.0,
-            color: |x, y| vary_color(Color::new(0.5, 0.5, 0.5, 1.0), 0.05, x, y),
-            lava_resistance: 0.05,
-            acid_resistance: 0.7,
-            ..Default::default()
-        },
-        /* Water */
-        MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
-            density: 1.0,
-            color: |x, y| vary_color(Color::new(0.1, 0.45, 0.82, 1.0), 0.01, x, y),
-            flow_distance: 5,
-            acid_resistance: 0.5,
-            ..Default::default()
-        },
-        /* Slime */
-        MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::MELTABLE | Behavior::CORRODIBLE,
-            density: 1.3,
-            color: |x, y| vary_color(Color::new(0.8, 0.3, 0.8, 1.0), 0.05, x, y),
-            flow_distance: 3,
-            lava_resistance: 1.0,
-            acid_resistance: 0.9,
-            ..Default::default()
-        },
-        /* Salt */
-        MaterialProperties {
-            behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
-            density: 1.5,
-            color: |x, y| vary_color(Color::new(0.9, 0.9, 1.0, 1.0), 0.05, x, y),
-            lava_resistance: 0.1,
-            acid_resistance: 0.7,
-            wake_chance: 0.4,
-            ..Default::default()
-        },
-        /* Salt Water */
-        MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
-            density: 1.1,
-            color: |_x, _y| Color::new(0.43, 0.77, 0.8, 1.0),
-            flow_distance: 3,
-            acid_resistance: 0.5,
-            ..Default::default()
-        },
-        /* Lava */
-        MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODIBLE | Behavior::HOT,
-            density: 1.1,
-            color: |_x, _y| Color::new(0.95, 0.7, 0.0, 1.0),
-            flow_distance: 1,
-            acid_resistance: 0.3,
-            cools_to: MaterialID::Stone,
-            ..Default::default()
-        },
-        /* Steam */
-        MaterialProperties {
-            behavior: Behavior::GAS | Behavior::CORRODIBLE,
-            density: 0.1,
-            color: |_x, _y| Color::new(0.9, 0.9, 0.9, 1.0),
-            flow_distance: 6,
-            acid_resistance: 0.1,
-            ..Default::default()
-        },
-        /* Dirt */
-        MaterialProperties {
-            behavior: Behavior::POWDER
-                | Behavior::MELTABLE
-                | Behavior::CORRODIBLE
-                | Behavior::PERMEABLE,
-            density: 1.7,
-            color: |x, y| vary_color(Color::new(0.35, 0.23, 0.16, 1.0), 0.05, x, y),
-            lava_resistance: 0.4,
-            acid_resistance: 0.5,
-            wake_chance: 0.3,
-            ..Default::default()
-        },
-        /* Snow */
-        MaterialProperties {
-            behavior: Behavior::POWDER | Behavior::MELTABLE | Behavior::CORRODIBLE,
-            density: 1.7,
-            color: |x, y| vary_color(Color::new(0.9, 1.0, 1.0, 0.9), 0.02, x, y),
-            lava_resistance: 1.0,
-            acid_resistance: 0.0,
-            wake_chance: 0.05,
-            ..Default::default()
-        },
-        /* Oil */
-        MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::FLAMMABLE | Behavior::CORRODIBLE,
-            density: 0.9,
-            color: |_x, _y| Color::new(0.14, 0.1, 0.05, 1.0),
-            flow_distance: 3,
-            flammability: 0.5,
-            burn_intensity: 2.0,
-            burn_time: 5.0,
-            acid_resistance: 0.1,
-            ..Default::default()
-        },
-        /* Wood */
-        MaterialProperties {
-            behavior: Behavior::STATIC
-                | Behavior::FLAMMABLE
-                | Behavior::CORRODIBLE
-                | Behavior::PERMEABLE,
-            density: 1.7,
-            color: |_x, _y| Color::from_rgba(74, 61, 38, 255),
-            flammability: 0.05,
-            burn_intensity: 1.0,
-            burn_time: 7.0,
-            acid_resistance: 0.2,
-            ..Default::default()
-        },
-        /* Fire */
-        MaterialProperties {
-            behavior: Behavior::GAS | Behavior::HOT,
-            density: 0.1,
-            color: |_x, _y| Color::new(1.0, 0.5, 0.0, 1.0),
-            flow_distance: 1,
-            ..Default::default()
-        },
-        /* Smoke */
-        MaterialProperties {
-            behavior: Behavior::GAS | Behavior::CORRODIBLE,
-            density: 0.1,
-            color: |_x, _y| Color::new(0.4, 0.4, 0.4, 1.0),
-            flow_distance: 2,
-            acid_resistance: 0.0,
-            ..Default::default()
-        },
-        /* Acid */
-        MaterialProperties {
-            behavior: Behavior::LIQUID,
-            density: 0.9,
-            color: |_x, _y| Color::new(0.14, 0.74, 0.31, 1.0),
-            flow_distance: 4,
-            ..Default::default()
-        },
-        /* DenseRock */
-        MaterialProperties {
-            behavior: Behavior::STATIC,
-            density: 0.9,
-            color: |x, y| vary_color(Color::new(0.2, 0.2, 0.2, 1.0), 0.05, x, y),
-            explosion_resistance: 1000.0,
-            ..Default::default()
-        },
-        /* FlammableGas */
-        MaterialProperties {
-            behavior: Behavior::GAS | Behavior::FLAMMABLE,
-            density: 0.1,
-            color: |_x, _y| Color::new(0.2, 0.34, 0.11, 1.0),
-            flow_distance: 7,
-            flammability: 1.0,
-            burn_intensity: 5.0,
-            burn_time: 0.2,
-            ..Default::default()
-        },
-        /* Rainbow */
-        MaterialProperties {
-            behavior: Behavior::POWDER,
-            density: 2.0,
-            color: |x, y| vary_color(rainbow_color(x, y), 0.1, x, y),
-            ..Default::default()
-        },
-        /* Coal */
-        MaterialProperties {
-            behavior: Behavior::POWDER | Behavior::FLAMMABLE | Behavior::PERMEABLE,
-            density: 2.0,
-            color: |x, y| vary_color(Color::new(0.1, 0.1, 0.1, 1.0), 0.1, x, y),
-            flammability: 0.004,
-            burn_intensity: 1.0,
-            burn_time: 10.0,
-            wake_chance: 0.1,
-            ..Default::default()
-        },
-        /* ToxicSludge */
-        MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
-            density: 0.9,
-            color: |_x, _y| Color::from_rgba(107, 145, 19, 255),
-            flow_distance: 5,
-            acid_resistance: 0.4,
-            ..Default::default()
-        },
-        /* Gunpowder */
-        MaterialProperties {
-            behavior: Behavior::POWDER | Behavior::CORRODIBLE,
-            density: 5.5,
-            color: |x, y| vary_color(Color::from_rgba(133, 133, 133, 255), 0.1, x, y),
-            flow_distance: 5,
-            acid_resistance: 0.4,
-            ..Default::default()
-        },
-        /* Nitro */
-        MaterialProperties {
-            behavior: Behavior::LIQUID | Behavior::CORRODIBLE,
-            density: 1.0,
-            color: |x, y| vary_color(Color::from_rgba(6, 92, 0, 255), 0.01, x, y),
-            flow_distance: 6,
-            acid_resistance: 0.4,
-            ..Default::default()
-        },
-        /* Dynamite */
-        MaterialProperties {
-            behavior: Behavior::STATIC | Behavior::CORRODIBLE,
-            density: 2.0,
-            color: |x, y| vary_color(Color::from_rgba(92, 24, 0, 255), 0.01, x, y),
-            acid_resistance: 0.4,
-            ..Default::default()
-        },
-        /* Methane */
-        MaterialProperties {
-            behavior: Behavior::GAS | Behavior::FLAMMABLE,
-            density: 0.1,
-            color: |_x, _y| Color::from_rgba(135, 135, 135, 255),
-            ..Default::default()
-        },
-    ]
-});
 
 #[derive(Debug)]
 pub struct MaterialProperties {
@@ -450,7 +420,7 @@ mod tests {
 
     #[test]
     fn material_table_covers_all() {
-        // would panic if different number of properties vs materials in the enum
+        // would panic if a variant were missing a match arm (compile-time now, not runtime)
         for id in MaterialID::iter() {
             let _ = id.properties();
         }
