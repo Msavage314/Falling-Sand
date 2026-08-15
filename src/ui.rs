@@ -1,4 +1,5 @@
 use crate::Grid;
+use crate::marching_squares::Segment;
 use crate::materials::MaterialID;
 use egui_macroquad::egui;
 use macroquad::prelude::*;
@@ -11,6 +12,7 @@ pub struct UiState {
     cached_total: i32,
     cached_counts: HashMap<MaterialID, i32>,
     draw_chunk_debug: bool,
+    draw_marching_squares: bool,
     fps: i32,
 }
 impl UiState {
@@ -21,7 +23,8 @@ impl UiState {
             playing: true,
             cached_total: 0,
             cached_counts: HashMap::new(),
-            draw_chunk_debug: true,
+            draw_chunk_debug: false,
+            draw_marching_squares: false,
             fps: 0,
         };
     }
@@ -53,6 +56,9 @@ impl UiState {
         });
         if self.draw_chunk_debug {
             self.draw_chunk_debug(grid);
+        }
+        if self.draw_marching_squares {
+            self.draw_marching_squares(grid);
         }
 
         return wants_pointer;
@@ -105,6 +111,7 @@ impl UiState {
                 }
                 ui.separator();
                 ui.checkbox(&mut self.draw_chunk_debug, "Chunk Debug");
+                ui.checkbox(&mut self.draw_marching_squares, "Marching Squares Debug");
                 ui.heading("Config");
                 ui.separator();
                 ui.label("Border Material");
@@ -179,6 +186,24 @@ impl UiState {
                 };
                 draw_rectangle_lines(px, py, pw, ph, 10.0, color);
             }
+        }
+    }
+    fn draw_marching_squares(&mut self, grid: &Grid) {
+        let segments = crate::marching_squares::generate_lines(grid);
+
+        let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
+
+        let scale_x = rw / grid.width as f32;
+        let scale_y = rh / grid.height as f32;
+
+        for segment in segments {
+            let x1 = rx + (segment.start.0 + 0.5) * scale_x;
+            let y1 = ry + (segment.start.1 + 0.5) * scale_y;
+
+            let x2 = rx + (segment.end.0 + 0.5) * scale_x;
+            let y2 = ry + (segment.end.1 + 0.5) * scale_y;
+
+            draw_line(x1, y1, x2, y2, 2.0, BLUE);
         }
     }
 }

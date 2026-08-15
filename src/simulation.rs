@@ -21,7 +21,7 @@ use std::collections::HashMap;
 pub struct Grid {
     pub width: usize,
     pub height: usize,
-    cells: Vec<Cell>,
+    pub cells: Vec<Cell>,
     /// List of particles. They have velocity and position, and move according to physics until they
     /// collide with a non empty cell
     pub particles: Vec<Particle>,
