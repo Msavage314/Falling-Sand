@@ -511,20 +511,6 @@ impl Grid {
                 }
             }
         }
-
-        for cy in 0..self.chunks_y {
-            for cx in 0..self.chunks_x {
-                let chunk_idx = cy * self.chunks_x + cx;
-                if !active_chunks[chunk_idx] {
-                    continue;
-                }
-
-                let x_start = cx * self.chunk_size;
-                let x_end = (x_start + self.chunk_size).min(self.width);
-                let y_start = cy * self.chunk_size;
-                let y_end = (y_start + self.chunk_size).min(self.height);
-            }
-        }
     }
 
     pub fn draw_brush(&mut self, cx: i32, cy: i32, radius: i32, material: MaterialID) {

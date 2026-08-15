@@ -407,6 +407,26 @@ pub static REACTIONS: &[Reaction] = &[
         chance: 0.05,
     },
     Reaction {
+        a: Reactant::Material(MaterialID::ToxicSludge),
+        b: Reactant::Behavior(Behavior::STATIC),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, b| {
+                if b.stain.is_some_and(|s| s.kind == StainKind::Toxic) {
+                    Product::NoChange
+                } else {
+                    Product::Stain(Stain {
+                        kind: StainKind::Toxic,
+                        intensity: 1.0,
+                        timer: 100.0,
+                    })
+                }
+            },
+        }),
+        chance: 0.05,
+    },
+    Reaction {
         a: Reactant::Stain(StainKind::Wet),
         b: Reactant::Behavior(Behavior::PERMEABLE),
 
