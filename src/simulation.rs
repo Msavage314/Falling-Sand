@@ -208,15 +208,7 @@ impl Grid {
         return rng::chance(chance);
     }
 
-    fn try_flow(
-        &mut self,
-        cell: Cell,
-        x: i32,
-        y: i32,
-        dir: i32,
-        max_dist: i32,
-        falling: bool,
-    ) -> bool {
+    fn try_flow(&mut self, x: i32, y: i32, dir: i32, max_dist: i32, falling: bool) -> bool {
         let mut target = None;
 
         for d in 1..=max_dist {
@@ -431,23 +423,19 @@ impl Grid {
         }
         if cell.behaviors().contains(Behavior::GRANULAR) && cell.awake {
             if rng::chance(0.5) {
-                let other = self.get(x + 1, y + 1);
                 if self.can_density_swap(x, y, x + 1, y + 1, true) {
                     self.swap_cells(x, y, x + 1, y + 1);
                     return;
                 }
-                let other = self.get(x - 1, y + 1);
                 if self.can_density_swap(x, y, x - 1, y + 1, true) {
                     self.swap_cells(x, y, x - 1, y + 1);
                     return;
                 }
             } else {
-                let other = self.get(x - 1, y + 1);
                 if self.can_density_swap(x, y, x - 1, y + 1, true) {
                     self.swap_cells(x, y, x - 1, y + 1);
                     return;
                 }
-                let other = self.get(x + 1, y + 1);
                 if self.can_density_swap(x, y, x + 1, y + 1, true) {
                     self.swap_cells(x, y, x + 1, y + 1);
                     return;
@@ -460,17 +448,17 @@ impl Grid {
             let falling = !cell.behaviors().contains(Behavior::RISES);
 
             if left_first {
-                if self.try_flow(cell, x, y, -1, flow, falling) {
+                if self.try_flow(x, y, -1, flow, falling) {
                     return;
                 }
-                if self.try_flow(cell, x, y, 1, flow, falling) {
+                if self.try_flow(x, y, 1, flow, falling) {
                     return;
                 }
             } else {
-                if self.try_flow(cell, x, y, 1, flow, falling) {
+                if self.try_flow(x, y, 1, flow, falling) {
                     return;
                 }
-                if self.try_flow(cell, x, y, -1, flow, falling) {
+                if self.try_flow(x, y, -1, flow, falling) {
                     return;
                 }
             }
@@ -565,7 +553,7 @@ impl Grid {
     }
     pub fn load_from_file(&mut self, path: &str) -> std::io::Result<()> {
         let json = std::fs::read_to_string(path)?;
-        let mut new_grid: Grid =
+        let new_grid: Grid =
             serde_json::from_str(&json).expect("Scene file was not a valid Grid JSON");
 
         self.width = new_grid.width;
