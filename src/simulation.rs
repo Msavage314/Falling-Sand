@@ -10,10 +10,14 @@ use crate::stains::Stain;
 use crate::stains::StainKind;
 use egui_macroquad::egui::vec2;
 use macroquad::prelude::*;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 /// Owns the simulation state and rendering surface for the falling-sand grid.
 ///
 /// Cells are stored in a flat row `Vec<Cell>` rather than a 2d array for increased performance
+
+#[derive(Serialize, Deserialize)]
 pub struct Grid {
     pub width: usize,
     pub height: usize,
@@ -554,5 +558,27 @@ impl Grid {
             }
         }
         return counts;
+    }
+    pub fn save_to_file(&self, path: &str) -> std::io::Result<()> {
+        let json = serde_json::to_string(&self).expect("Serialization of grid should not fail");
+        return std::fs::write(path, json);
+    }
+    pub fn load_from_file(&mut self, path: &str) -> std::io::Result<()> {
+        let json = std::fs::read_to_string(path)?;
+        let mut new_grid: Grid =
+            serde_json::from_str(&json).expect("Scene file was not a valid Grid JSON");
+
+        self.width = new_grid.width;
+        self.height = new_grid.height;
+        self.cells = new_grid.cells;
+        self.particles = new_grid.particles;
+        self.updated = new_grid.updated;
+        self.border = new_grid.border;
+        self.chunk_size = new_grid.chunk_size;
+        self.chunks_need_update = new_grid.chunks_need_update;
+        self.chunks_x = new_grid.chunks_x;
+        self.chunks_y = new_grid.chunks_y;
+
+        Ok(())
     }
 }

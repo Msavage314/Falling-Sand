@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::materials::Behavior;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum StainKind {
     Burning,
     Wet,
@@ -17,7 +19,7 @@ impl StainKind {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Stain {
     pub kind: StainKind,
     pub intensity: f32, // 0.0-1.0

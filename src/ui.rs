@@ -116,6 +116,18 @@ impl UiState {
                         }
                     }
                 });
+                ui.heading("Save");
+                ui.separator();
+                if ui.button("Save to file").clicked() {
+                    if let Some(path) = rfd::FileDialog::new().save_file() {
+                        grid.save_to_file(path.to_str().unwrap()).ok();
+                    }
+                }
+                if ui.button("Load from file").clicked() {
+                    if let Some(path) = rfd::FileDialog::new().pick_file() {
+                        grid.load_from_file(path.to_str().unwrap()).ok();
+                    }
+                }
             });
     }
 

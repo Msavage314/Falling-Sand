@@ -237,7 +237,7 @@ pub static REACTIONS: &[Reaction] = &[
             apply_fn: |_a, _b| Product::Material(MaterialID::Empty),
         }),
         output_b: None,
-        chance: 0.1,
+        chance: 0.02,
     },
     Reaction {
         a: Reactant::Material(MaterialID::Fire),

@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 use macroquad::color::Color;
+use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 use strum_macros::EnumIter;
 
@@ -31,7 +32,7 @@ bitflags! {
 }
 
 /// Stores a material ID that represents a specific material
-#[derive(Debug, Clone, Copy, PartialEq, EnumIter, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, EnumIter, Eq, Hash, Serialize, Deserialize)]
 pub enum MaterialID {
     Empty,
     Sand,
@@ -187,9 +188,9 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
             density: 0.9,
             color: |_x, _y| Color::new(0.14, 0.1, 0.05, 1.0),
             flow_distance: 3,
-            flammability: 0.1,
+            flammability: 0.5,
             burn_intensity: 2.0,
-            burn_time: 3.0,
+            burn_time: 5.0,
             acid_resistance: 0.1,
             ..Default::default()
         },
@@ -203,7 +204,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
             color: |_x, _y| Color::from_rgba(74, 61, 38, 255),
             flammability: 0.05,
             burn_intensity: 1.0,
-            burn_time: 5.0,
+            burn_time: 7.0,
             acid_resistance: 0.2,
             ..Default::default()
         },
@@ -253,7 +254,7 @@ pub static MATERIAL_TABLE: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = Lazy
         },
         /* Rainbow */
         MaterialProperties {
-            behavior: Behavior::POWDER | Behavior::CORRODIBLE,
+            behavior: Behavior::POWDER,
             density: 2.0,
             color: |x, y| vary_color(rainbow_color(x, y), 0.1, x, y),
             ..Default::default()

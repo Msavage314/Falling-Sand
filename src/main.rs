@@ -9,11 +9,29 @@ pub mod rng;
 pub mod simulation;
 pub mod stains;
 pub mod ui;
+use core::time::Duration;
+use std::time::Instant;
+
 use macroquad::prelude::*;
 use materials::MaterialID;
 use simulation::Grid;
 
-#[macroquad::main("Falling Sand")]
+fn window_config() -> Conf {
+    Conf {
+        window_title: String::from("Falling Sand"),
+        window_width: 800,
+        window_height: 600,
+        window_resizable: true,
+        icon: None,
+        platform: miniquad::conf::Platform {
+            swap_interval: Some(0),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_config)]
 async fn main() {
     let mut g = Grid::new(
         config::WIDTH,
@@ -24,6 +42,10 @@ async fn main() {
     let mut render = render::GridRenderer::new(g.width, g.height);
     let mut ui = ui::UiState::new();
     let mut frame_count = 0;
+
+    let fps_target = config::FPS_TARGET;
+    let frame_dur = Duration::from_secs_f64(1.0 / fps_target);
+    let mut next_tick = Instant::now();
     loop {
         clear_background(BLACK);
 
@@ -65,6 +87,13 @@ async fn main() {
         }
 
         egui_macroquad::draw();
+        next_tick += frame_dur;
+        let now = Instant::now();
+        if next_tick > now {
+            std::thread::sleep(next_tick - now);
+        } else {
+            next_tick = now;
+        }
 
         next_frame().await;
     }

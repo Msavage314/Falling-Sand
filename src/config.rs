@@ -4,11 +4,17 @@ use crate::materials::MaterialID;
 /// `DenseRock` results in sand stopping at the edge, whereas `Empty` makes it fall offscreen
 pub const BORDER_OPTIONS: [MaterialID; 2] = [MaterialID::Empty, MaterialID::DenseRock];
 
-pub const WIDTH: usize = 384;
-pub const HEIGHT: usize = 320;
+/// In simulations pixels
+pub const WIDTH: usize = 400;
+/// In simulation pixels
+pub const HEIGHT: usize = 336;
 
-// Must divide into width and height
+/// Must divide into width and height
 pub const CHUNK_SIZE: usize = 16;
 
-// Cells per tick per tick of acceleration
+/// Cells per tick per tick of acceleration
 pub const GRAVITY: f32 = 0.1;
+
+/// Target fps for the simulation to run at. There is no delta t used in this simulation, so higher speeds will make the simulation feel faster
+
+pub const FPS_TARGET: f64 = 60.0;
