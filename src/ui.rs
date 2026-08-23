@@ -1,7 +1,10 @@
 use crate::Grid;
-use crate::marching_squares::Segment;
+use crate::marching_squares::{Segment, generate_lines};
 use crate::materials::MaterialID;
+use core::task::Poll;
 use egui_macroquad::egui;
+use i_triangle::float::triangulatable::Triangulatable;
+use i_triangle::float::triangulation;
 use macroquad::prelude::*;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
@@ -59,6 +62,8 @@ impl UiState {
         }
         if self.draw_marching_squares {
             self.draw_marching_squares(grid);
+            self.draw_polygons(grid);
+            self.draw_triangulation(grid);
         }
 
         return wants_pointer;
@@ -109,6 +114,11 @@ impl UiState {
                         ui.label(format!("{:?}: {}", id, count));
                     }
                 }
+                ui.separator();
+                ui.label(format!(
+                    "{}",
+                    crate::marching_squares::generate_lines(grid).iter().len()
+                ));
                 ui.separator();
                 ui.checkbox(&mut self.draw_chunk_debug, "Chunk Debug");
                 ui.checkbox(&mut self.draw_marching_squares, "Marching Squares Debug");
@@ -188,9 +198,36 @@ impl UiState {
             }
         }
     }
+    fn draw_polygons(&mut self, grid: &Grid) {
+        let polygons = crate::marching_squares::stitch_polygons(
+            &crate::marching_squares::generate_lines(grid),
+        );
+        let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
+
+        let scale_x = rw / grid.width as f32;
+        let scale_y = rh / grid.height as f32;
+        for polygon in polygons {
+            for (a, b) in polygon
+                .points
+                .windows(2)
+                .map(|w| (&w[0], &w[1]))
+                .chain(std::iter::once((
+                    polygon.points.last().unwrap(),
+                    polygon.points.first().unwrap(),
+                )))
+            {
+                let x1 = rx + (a.0 + 0.5) * scale_x;
+                let y1 = ry + (a.1 + 0.5) * scale_y;
+
+                let x2 = rx + (b.0 + 0.5) * scale_x;
+                let y2 = ry + (b.1 + 0.5) * scale_y;
+
+                draw_line(x1, y1, x2, y2, 2.0, RED);
+            }
+        }
+    }
     fn draw_marching_squares(&mut self, grid: &Grid) {
         let segments = crate::marching_squares::generate_lines(grid);
-
         let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
 
         let scale_x = rw / grid.width as f32;
@@ -204,6 +241,31 @@ impl UiState {
             let y2 = ry + (segment.end.1 + 0.5) * scale_y;
 
             draw_line(x1, y1, x2, y2, 2.0, BLUE);
+        }
+    }
+    fn draw_triangulation(&mut self, grid: &Grid) {
+        let segments = crate::marching_squares::generate_lines(grid);
+        let polygons = crate::marching_squares::stitch_polygons(&segments);
+        let triangulations = crate::marching_squares::triangulate(&polygons);
+
+        let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
+        let scale_x = rw / grid.width as f32;
+        let scale_y = rh / grid.height as f32;
+
+        let to_screen = |p: [f64; 2]| -> Vec2 {
+            vec2(
+                rx + (p[0] as f32 + 0.5) * scale_x,
+                ry + (p[1] as f32 + 0.5) * scale_y,
+            )
+        };
+        for triangulation in &triangulations {
+            for tri in triangulation.indices.chunks(3) {
+                let a = to_screen(triangulation.points[tri[0] as usize]);
+                let b = to_screen(triangulation.points[tri[1] as usize]);
+                let c = to_screen(triangulation.points[tri[2] as usize]);
+
+                draw_triangle_lines(a, b, c, 2.0, GREEN);
+            }
         }
     }
 }

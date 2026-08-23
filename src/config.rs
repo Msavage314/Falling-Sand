@@ -5,9 +5,9 @@ use crate::materials::MaterialID;
 pub const BORDER_OPTIONS: [MaterialID; 2] = [MaterialID::Empty, MaterialID::DenseRock];
 
 /// In simulations pixels
-pub const WIDTH: usize = 400;
+pub const WIDTH: usize = 16;
 /// In simulation pixels
-pub const HEIGHT: usize = 336;
+pub const HEIGHT: usize = 16;
 
 /// Must divide into width and height
 pub const CHUNK_SIZE: usize = 16;
