@@ -143,6 +143,32 @@ fn point_key(p: (f32, f32)) -> (i64, i64) {
     const SCALE: f32 = 1000.0;
     return ((p.0 * SCALE).round() as i64, (p.1 * SCALE).round() as i64);
 }
+// computes the signed area of a set of points.
+fn signed_area(points: &[(f32, f32)]) -> f32 {
+    let mut area = 0.0;
+    for i in 0..points.len() {
+        let (x1, y1) = points[i];
+        let (x2, y2) = points[(i + 1) % points.len()];
+        area += x1 * y1 - x2 * y1;
+    }
+    area * 0.5
+}
+fn point_in_polygon(point: (f32, f32), polygon: &[(f32, f32)]) -> bool {
+    let mut inside = false;
+    let n = polygon.len();
+    let mut j = n - 1;
+    for i in 0..n {
+        let (xi, yi) = polygon[i];
+        let (xj, yj) = polygon[j];
+        if ((yi > point.1) != (yj > point.1))
+            && (point.0 < (xj - xi) * (point.1 - yi) / (yj - yi) + xi)
+        {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
+}
 
 pub fn stitch_polygons(segments: &Vec<Segment>) -> Vec<Polygon> {
     // map each start point to a list of segment indices which start there
@@ -195,17 +221,42 @@ pub fn stitch_polygons(segments: &Vec<Segment>) -> Vec<Polygon> {
 }
 
 pub fn triangulate(polygons: &Vec<Polygon>) -> Vec<Triangulation<[f64; 2], u32>> {
-    let mut triangulations = Vec::new();
+    let mut outers = Vec::new();
+    let mut holes = Vec::new();
+
     for polygon in polygons {
-        let contour: Vec<[f64; 2]> = polygon
+        if signed_area(&polygon.points) < 0.0 {
+            outers.push(polygon);
+        } else {
+            holes.push(polygon);
+        }
+    }
+
+    let mut triangulations = Vec::new();
+    for outer in outers {
+        let outer_contour: Vec<[f64; 2]> = outer
             .points
             .iter()
             .map(|p| [p.0 as f64, p.1 as f64])
             .collect();
 
-        let shape = vec![contour];
+        let mut shape = vec![outer_contour];
+
+        for hole in &holes {
+            // Test any point on the hole against the outer boundary.
+            if point_in_polygon(hole.points[0], &outer.points) {
+                shape.push(
+                    hole.points
+                        .iter()
+                        .map(|p| [p.0 as f64, p.1 as f64])
+                        .collect(),
+                );
+            }
+        }
+
         let triangulation = shape.triangulate().to_triangulation::<u32>();
         triangulations.push(triangulation);
     }
-    return triangulations;
+
+    triangulations
 }
