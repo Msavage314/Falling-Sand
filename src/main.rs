@@ -1,6 +1,7 @@
 pub mod cell;
 pub mod config;
 pub mod explosion;
+pub mod marching_squares;
 pub mod materials;
 pub mod particle;
 pub mod reaction;

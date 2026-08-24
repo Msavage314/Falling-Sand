@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bitflags = "2.13.1"
 egui-macroquad = "0.17.3"
+i_triangle = "0.46.0"
 macroquad = "0.4.15"
 macroquad-profiler = "0.2.0"
 rand = "0.10.2"
