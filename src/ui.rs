@@ -60,11 +60,11 @@ impl UiState {
         if self.draw_chunk_debug {
             self.draw_chunk_debug(grid);
         }
-        if self.draw_marching_squares {
-            self.draw_marching_squares(grid);
-            self.draw_polygons(grid);
-            self.draw_triangulation(grid);
-        }
+        // if self.draw_marching_squares {
+        //     self.draw_marching_squares(grid);
+        //     self.draw_polygons(grid);
+        //     self.draw_triangulation(grid);
+        // }
 
         return wants_pointer;
     }
