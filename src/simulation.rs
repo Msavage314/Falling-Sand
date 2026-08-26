@@ -8,6 +8,7 @@ use crate::reaction::Product;
 use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
+use core::ops::Index;
 use egui_macroquad::egui::vec2;
 use macroquad::prelude::*;
 use serde::Deserialize;
@@ -568,5 +569,11 @@ impl Grid {
         self.chunks_y = new_grid.chunks_y;
 
         Ok(())
+    }
+}
+impl Index<(i32, i32)> for Grid {
+    type Output = Cell;
+    fn index(&self, (x, y): (i32, i32)) -> &Self::Output {
+        return &self.cells[y as usize * self.width + x as usize];
     }
 }
