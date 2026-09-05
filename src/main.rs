@@ -20,12 +20,10 @@ use simulation::Grid;
 fn window_config() -> Conf {
     Conf {
         window_title: String::from("Falling Sand"),
-        window_width: 800,
-        window_height: 600,
         window_resizable: true,
+        high_dpi: true,
         icon: None,
         platform: miniquad::conf::Platform {
-            swap_interval: Some(0),
             ..Default::default()
         },
         ..Default::default()
@@ -88,14 +86,14 @@ async fn main() {
         }
 
         egui_macroquad::draw();
+        macroquad_profiler::profiler(Default::default());
         next_tick += frame_dur;
         let now = Instant::now();
         if next_tick > now {
-            std::thread::sleep(next_tick - now);
+            //std::thread::sleep(next_tick - now);
         } else {
             next_tick = now;
         }
-
-        next_frame().await;
+        next_frame().await
     }
 }
