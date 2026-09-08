@@ -9,7 +9,7 @@ use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
 use core::ops::Index;
-use egui_macroquad::egui::vec2;
+use egui::vec2;
 use macroquad::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
