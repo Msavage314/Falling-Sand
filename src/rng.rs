@@ -1,7 +1,5 @@
-use macroquad;
-
 pub fn chance(p: f32) -> bool {
-    return macroquad::rand::gen_range(0.0, 1.0) < p;
+    return rand::random_range(0.0..1.0) < p;
 }
 
 // /// IMPORTANT:

@@ -28,6 +28,7 @@ use crate::ui::UiState;
 struct App {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
+    framework: Option<crate::ui::Framework>,
     grid: Grid,
     ui: UiState,
     frame_count: u64,
@@ -37,6 +38,7 @@ struct App {
     cursor_pos: (f32, f32),
     left_down: bool,
     right_down: bool,
+    egui_wants_pointer: bool,
 }
 impl App {
     fn new() -> Self {
@@ -53,6 +55,7 @@ impl App {
             window: None,
             pixels: None,
             grid: grid,
+            framework: None,
             ui,
             frame_count: 0,
             next_tick: Instant::now(),
@@ -60,7 +63,66 @@ impl App {
             cursor_pos: (0.0, 0.0),
             left_down: false,
             right_down: false,
+            egui_wants_pointer: false,
         };
+    }
+    fn redraw(&mut self) {
+        let (Some(window), Some(pixels), Some(framework)) =
+            (&self.window, &mut self.pixels, &mut self.framework)
+        else {
+            return;
+        };
+
+        // 1. tick sim + paint from mouse (gate on last frame's wants_pointer)
+        let now = Instant::now();
+        if now >= self.next_tick && self.ui.playing {
+            self.grid.update(self.frame_count % 2 == 0);
+            self.frame_count += 1;
+            self.next_tick += self.frame_dur;
+            if self.next_tick < now {
+                self.next_tick = now + self.frame_dur;
+            }
+        }
+
+        if !self.egui_wants_pointer {
+            if let Ok((gx, gy)) = pixels.window_pos_to_pixel(self.cursor_pos) {
+                if self.left_down {
+                    self.grid
+                        .draw_brush(gx as i32, gy as i32, self.ui.radius, self.ui.active);
+                }
+                if self.right_down {
+                    self.grid
+                        .draw_brush(gx as i32, gy as i32, self.ui.radius, MaterialID::Empty);
+                }
+            }
+        }
+
+        if self.frame_count % 15 == 0 {
+            self.ui.refresh_cache(&mut self.grid);
+        }
+
+        // 2. rasterize sand into the CPU buffer
+        render::draw(pixels.frame_mut(), &self.grid);
+
+        // 3. build the egui frame
+        let ui = &mut self.ui;
+        let grid = &mut self.grid;
+        framework.prepare(window, |ctx| {
+            ui.draw(ctx, grid);
+        });
+        self.egui_wants_pointer = framework.ctx().wants_pointer_input();
+
+        // 4. render: pixels' built-in upscale pass, then egui on top
+        let render_result = pixels.render_with(|encoder, render_target, context| {
+            context.scaling_renderer.render(encoder, render_target);
+            framework.render(encoder, render_target, context);
+            Ok(())
+        });
+        if render_result.is_err() {
+            return;
+        }
+
+        window.request_redraw();
     }
 }
 impl ApplicationHandler for App {
@@ -79,8 +141,12 @@ impl ApplicationHandler for App {
         let mut pixels =
             Pixels::new(config::WIDTH as u32, config::HEIGHT as u32, surface_texture).unwrap();
         pixels.set_scaling_mode(pixels::ScalingMode::Fill);
+        let size = window.inner_size();
+        let scale_factor = window.scale_factor() as f32;
+        let framework = ui::Framework::new(&window, size.width, size.height, scale_factor, &pixels);
+        self.framework = Some(framework);
+        self.pixels = Some(pixels);
         self.window = Some(window);
-        self.pixels = Some(pixels)
     }
 
     fn window_event(
@@ -89,6 +155,10 @@ impl ApplicationHandler for App {
         window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        // Let egui have th events first. any it doesn't use relate to the sand simulation
+        if let (Some(window), Some(framework)) = (&self.window, &mut self.framework) {
+            let consumed = framework.handle_event(window, &event);
+        }
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -97,41 +167,12 @@ impl ApplicationHandler for App {
                 if let Some(pixels) = &mut self.pixels {
                     pixels.resize_surface(size.width, size.height).unwrap();
                 }
+                if let Some(framework) = &mut self.framework {
+                    framework.resize(size.width, size.height);
+                }
             }
             WindowEvent::RedrawRequested => {
-                let now = Instant::now();
-                if now >= self.next_tick {
-                    self.grid.update(self.frame_count % 2 == 0);
-                    self.frame_count += 1;
-                    self.next_tick += self.frame_dur;
-                    if self.next_tick < now {
-                        self.next_tick = now + self.frame_dur; // don't spiral if we fall behind
-                    }
-                }
-                if let Some(pixels) = &self.pixels {
-                    if let Ok((gx, gy)) = pixels.window_pos_to_pixel(self.cursor_pos) {
-                        if self.left_down {
-                            self.grid.draw_brush(
-                                gx as i32,
-                                gy as i32,
-                                self.ui.radius,
-                                self.ui.active,
-                            );
-                            if self.right_down {
-                                self.grid.draw_brush(
-                                    gx as i32,
-                                    gy as i32,
-                                    self.ui.radius,
-                                    MaterialID::Empty,
-                                );
-                            }
-                        }
-                    }
-                }
-                if let Some(pixels) = &mut self.pixels {
-                    render::draw(pixels.frame_mut(), &self.grid);
-                    pixels.render().unwrap();
-                }
+                self.redraw();
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.cursor_pos = (position.x as f32, position.y as f32);

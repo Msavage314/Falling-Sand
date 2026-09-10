@@ -1,5 +1,5 @@
+use crate::cell::Color;
 use crate::{simulation, stains::StainKind};
-use macroquad::color::Color;
 pub fn draw(frame: &mut [u8], grid: &simulation::Grid) {
     for y in 0..grid.height {
         for x in 0..grid.width {
@@ -44,6 +44,19 @@ pub fn draw(frame: &mut [u8], grid: &simulation::Grid) {
             frame[idx + 2] = (final_color.b * 255.0) as u8;
             frame[idx + 3] = (final_color.a * 255.0) as u8;
         }
+    }
+    for particle in &grid.particles {
+        let x = particle.pos.x.floor();
+        let y = particle.pos.y.floor();
+        if x < 0.0 || y < 0.0 || x as usize >= grid.width || y as usize >= grid.height {
+            continue;
+        }
+        let color = (particle.material.properties().color)(x as i32, y as i32);
+        let idx = (y as usize * grid.width + x as usize) * 4;
+        frame[idx] = (color.r * 255.0) as u8;
+        frame[idx + 1] = (color.g * 255.0) as u8;
+        frame[idx + 2] = (color.b * 255.0) as u8;
+        frame[idx + 3] = (color.a * 255.0) as u8;
     }
 }
 
