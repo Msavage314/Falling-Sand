@@ -11,10 +11,8 @@ pub struct Segment {
 }
 
 use crate::{materials::MaterialID, simulation::Grid};
-use core::hash::Hash;
 use i_triangle::float::triangulatable::Triangulatable;
 use i_triangle::float::triangulation::Triangulation;
-use i_triangle::float::triangulator::Triangulator;
 use std::collections::HashMap;
 pub fn generate_lines(grid: &Grid) -> Vec<Segment> {
     let cells: Vec<usize> = grid
@@ -148,7 +146,7 @@ fn signed_area(points: &[(f32, f32)]) -> f32 {
     let mut area = 0.0;
     for i in 0..points.len() {
         let (x1, y1) = points[i];
-        let (x2, y2) = points[(i + 1) % points.len()];
+        let (x2, _y2) = points[(i + 1) % points.len()];
         area += x1 * y1 - x2 * y1;
     }
     area * 0.5

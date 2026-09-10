@@ -1,3 +1,11 @@
+//! 5 different libraries are used in order to render both the pixel display and the ui.
+//! They are as follows:
+//! - winit - Controls events (mouse/keyboard) and window resizing.
+//! - pixels - a `wgpu::Device`/`wgpu::Queue`/`wgpu::Surface` triple. stores rendered simulation image
+//! - egui (core) - pure UI logic, e.g. panels, text, labels, buttons etc.
+//! - egui-winit - translates winit `WindowEvents` into egui's input format and egui's output (cursor icon, clipboard) back into winit
+//! - egui-wgpu - takes egui's output and renders it to the screen.
+
 pub mod cell;
 pub mod config;
 pub mod explosion;
@@ -18,8 +26,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use winit::{
     application::ApplicationHandler,
-    dpi::LogicalSize,
-    event::{Event, WindowEvent},
+    event::WindowEvent,
     event_loop::{ControlFlow, EventLoop},
     window::Window,
 };
@@ -110,7 +117,7 @@ impl App {
         framework.prepare(window, |ctx| {
             ui.draw(ctx, grid);
         });
-        self.egui_wants_pointer = framework.ctx().wants_pointer_input();
+        self.egui_wants_pointer = framework.ctx().egui_wants_pointer_input();
 
         // 4. render: pixels' built-in upscale pass, then egui on top
         let render_result = pixels.render_with(|encoder, render_target, context| {
@@ -152,12 +159,12 @@ impl ApplicationHandler for App {
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
         // Let egui have th events first. any it doesn't use relate to the sand simulation
         if let (Some(window), Some(framework)) = (&self.window, &mut self.framework) {
-            let consumed = framework.handle_event(window, &event);
+            let _consumed = framework.handle_event(window, &event);
         }
         match event {
             WindowEvent::CloseRequested => {
