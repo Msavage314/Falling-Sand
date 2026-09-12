@@ -47,20 +47,7 @@ pub fn draw(frame: &mut [u8], bloom: &mut [u8], grid: &simulation::Grid) {
             frame[idx + 2] = (final_color.b * 255.0) as u8;
             frame[idx + 3] = (final_color.a * 255.0) as u8;
 
-            let emissive =
-                if let MaterialID::Fire | MaterialID::Lava | MaterialID::Acid = cell.material {
-                    if let MaterialID::Fire | MaterialID::Lava = cell.material {
-                        final_color
-                    } else {
-                        final_color * 0.5
-                    }
-                } else if let Some(stain) = &cell.stain
-                    && let StainKind::Burning = stain.kind
-                {
-                    final_color
-                } else {
-                    Color::new(0.0, 0.0, 0.0, 0.0)
-                };
+            let emissive = final_color * cell.material.properties().bloom;
             bloom[idx..idx + 4].copy_from_slice(&[
                 (emissive.r * 255.0) as u8,
                 (emissive.g * 255.0) as u8,
