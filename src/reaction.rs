@@ -302,10 +302,19 @@ pub static REACTIONS: &[Reaction] = &[
         a: Reactant::Material(MaterialID::Water),
         b: Reactant::Behavior(Behavior::PERMEABLE),
 
-        output_a: None,
+        output_a: Some(ReactionOutcome {
+            apply_fn: |a, _b| {
+                if rng::chance(0.1) {
+                    Product::Material(MaterialID::Empty)
+                } else {
+                    Product::NoChange
+                }
+            },
+        }),
         output_b: Some(ReactionOutcome {
             apply_fn: |_a, b| {
                 let existing = b.stain.map(|s| s.intensity).unwrap_or(0.0);
+
                 Product::Stain(Stain {
                     kind: StainKind::Wet,
                     intensity: (existing + 0.1).min(1.0),

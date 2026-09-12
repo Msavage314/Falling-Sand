@@ -287,7 +287,7 @@ impl Grid {
             return;
         }
         if stain.kind == StainKind::Wet {
-            stain.intensity -= 0.05; // tune evaporation rate
+            stain.intensity -= 0.01; // tune evaporation rate
             if stain.intensity <= 0.0 {
                 self.set_stain(x, y, None);
                 return;

@@ -3,7 +3,7 @@ use crate::materials::MaterialID;
 use crate::stains::Stain;
 use crate::{simulation, stains::StainKind};
 /// standard colors are drawn to frame. bloom is pixels which should be bloomed
-pub fn draw(frame: &mut [u8], bloom: &mut [u8], grid: &simulation::Grid) {
+pub fn draw(frame: &mut [u8], bloom: &mut [u8], grid: &simulation::Grid, toggle_bloom: bool) {
     for y in 0..grid.height {
         for x in 0..grid.width {
             let cell = grid.get(x as i32, y as i32);
@@ -47,7 +47,16 @@ pub fn draw(frame: &mut [u8], bloom: &mut [u8], grid: &simulation::Grid) {
             frame[idx + 2] = (final_color.b * 255.0) as u8;
             frame[idx + 3] = (final_color.a * 255.0) as u8;
 
-            let emissive = final_color * cell.material.properties().bloom;
+            let emissive = if toggle_bloom {
+                final_color * cell.material.properties().bloom
+            } else {
+                Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.0,
+                }
+            };
             bloom[idx..idx + 4].copy_from_slice(&[
                 (emissive.r * 255.0) as u8,
                 (emissive.g * 255.0) as u8,

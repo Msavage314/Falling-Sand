@@ -32,6 +32,7 @@ pub struct UiState {
     cached_counts: HashMap<MaterialID, i32>,
     draw_chunk_debug: bool,
     draw_marching_squares: bool,
+    pub draw_bloom: bool,
     fps: i32,
     pub screen_width: f32,
     pub screen_height: f32,
@@ -46,6 +47,7 @@ impl UiState {
             cached_counts: HashMap::new(),
             draw_chunk_debug: false,
             draw_marching_squares: false,
+            draw_bloom: true,
             fps: 0,
             screen_width: 0.0,
             screen_height: 0.0,
@@ -128,6 +130,7 @@ impl UiState {
                 ui.separator();
                 ui.checkbox(&mut self.draw_chunk_debug, "Chunk Debug");
                 ui.checkbox(&mut self.draw_marching_squares, "Marching Squares Debug");
+                ui.checkbox(&mut self.draw_bloom, "Draw bloom effects");
                 ui.heading("Config");
                 ui.separator();
                 ui.label("Border Material");

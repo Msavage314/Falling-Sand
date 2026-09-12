@@ -1,4 +1,3 @@
-mod bloom;
 /// 5 different libraries are used in order to render both the pixel display and the ui.
 /// They are as follows:
 /// - winit - Controls events (mouse/keyboard) and window resizing.
@@ -7,6 +6,7 @@ mod bloom;
 /// - egui-winit - translates winit `WindowEvents` into egui's input format and egui's output (cursor icon, clipboard) back into winit
 /// - egui-wgpu - takes egui's output and renders it to the screen.
 ///
+mod bloom;
 pub mod cell;
 pub mod config;
 pub mod explosion;
@@ -129,7 +129,12 @@ impl App {
             self.ui.refresh_cache(&mut self.grid);
         }
 
-        render::draw(pixels.frame_mut(), &mut self.bloom_buffer, &self.grid);
+        render::draw(
+            pixels.frame_mut(),
+            &mut self.bloom_buffer,
+            &self.grid,
+            self.ui.draw_bloom,
+        );
 
         if let Some(bloom) = &self.bloom_effect {
             bloom.upload(pixels.queue(), &self.bloom_buffer);
