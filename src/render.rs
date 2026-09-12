@@ -1,6 +1,9 @@
 use crate::cell::Color;
+use crate::materials::MaterialID;
+use crate::stains::Stain;
 use crate::{simulation, stains::StainKind};
-pub fn draw(frame: &mut [u8], grid: &simulation::Grid) {
+/// standard colors are drawn to frame. bloom is pixels which should be bloomed
+pub fn draw(frame: &mut [u8], bloom: &mut [u8], grid: &simulation::Grid) {
     for y in 0..grid.height {
         for x in 0..grid.width {
             let cell = grid.get(x as i32, y as i32);
@@ -43,6 +46,27 @@ pub fn draw(frame: &mut [u8], grid: &simulation::Grid) {
             frame[idx + 1] = (final_color.g * 255.0) as u8;
             frame[idx + 2] = (final_color.b * 255.0) as u8;
             frame[idx + 3] = (final_color.a * 255.0) as u8;
+
+            let emissive =
+                if let MaterialID::Fire | MaterialID::Lava | MaterialID::Acid = cell.material {
+                    if let MaterialID::Fire | MaterialID::Lava = cell.material {
+                        final_color
+                    } else {
+                        final_color * 0.5
+                    }
+                } else if let Some(stain) = &cell.stain
+                    && let StainKind::Burning = stain.kind
+                {
+                    final_color
+                } else {
+                    Color::new(0.0, 0.0, 0.0, 0.0)
+                };
+            bloom[idx..idx + 4].copy_from_slice(&[
+                (emissive.r * 255.0) as u8,
+                (emissive.g * 255.0) as u8,
+                (emissive.b * 255.0) as u8,
+                255,
+            ]);
         }
     }
     for particle in &grid.particles {

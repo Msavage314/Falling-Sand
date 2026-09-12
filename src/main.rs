@@ -1,3 +1,4 @@
+mod bloom;
 /// 5 different libraries are used in order to render both the pixel display and the ui.
 /// They are as follows:
 /// - winit - Controls events (mouse/keyboard) and window resizing.
@@ -9,6 +10,7 @@
 pub mod cell;
 pub mod config;
 pub mod explosion;
+mod fullscreen_pass;
 pub mod marching_squares;
 pub mod materials;
 pub mod particle;
@@ -21,7 +23,7 @@ pub mod ui;
 use crate::ui::UiState;
 use core::time::Duration;
 use materials::MaterialID;
-use pixels::{Pixels, SurfaceTexture};
+use pixels::{Pixels, SurfaceTexture, wgpu};
 use simulation::Grid;
 use std::sync::Arc;
 use std::time::Instant;
@@ -50,6 +52,8 @@ struct App {
     // fps tracking
     fps_window_start: Instant,
     fps_frames_this_window: u32,
+    bloom_buffer: Vec<u8>,
+    bloom_effect: Option<crate::bloom::BloomEffect>,
 }
 impl App {
     fn new() -> Self {
@@ -77,6 +81,8 @@ impl App {
             egui_wants_pointer: false,
             fps_window_start: Instant::now(),
             fps_frames_this_window: 0,
+            bloom_buffer: vec![0u8; config::WIDTH * config::HEIGHT * 4],
+            bloom_effect: None,
         };
     }
     fn redraw(&mut self) {
@@ -123,10 +129,12 @@ impl App {
             self.ui.refresh_cache(&mut self.grid);
         }
 
-        // 2. rasterize sand into the CPU buffer
-        render::draw(pixels.frame_mut(), &self.grid);
+        render::draw(pixels.frame_mut(), &mut self.bloom_buffer, &self.grid);
 
-        // 3. build the egui frame
+        if let Some(bloom) = &self.bloom_effect {
+            bloom.upload(pixels.queue(), &self.bloom_buffer);
+        }
+
         let ui = &mut self.ui;
         let grid = &mut self.grid;
         framework.prepare(window, |ctx| {
@@ -134,10 +142,45 @@ impl App {
         });
         self.egui_wants_pointer = framework.ctx().egui_wants_pointer_input();
 
-        // 4. render: pixels' built-in upscale pass, then egui on top
+        let window_size = window.inner_size();
+        let screen_width = window_size.width as f32;
+        let screen_height = window_size.height as f32;
+
+        let grid_width = config::WIDTH as f32;
+        let grid_height = config::HEIGHT as f32;
+
+        let grid_aspect = grid_width / grid_height;
+        let screen_aspect = screen_width / screen_height;
+
+        let (viewport_width, viewport_height) = if screen_aspect > grid_aspect {
+            // Window is wider than the simulation.
+            let height = screen_height;
+            let width = height * grid_aspect;
+            (width, height)
+        } else {
+            // Window is taller/narrower than the simulation.
+            let width = screen_width;
+            let height = width / grid_aspect;
+            (width, height)
+        };
+
+        let viewport_x = (screen_width - viewport_width) * 0.5;
+        let viewport_y = (screen_height - viewport_height) * 0.5;
+
+        let bloom_viewport = (viewport_x, viewport_y, viewport_width, viewport_height);
+
         let render_result = pixels.render_with(|encoder, render_target, context| {
+            // Normal game image.
             context.scaling_renderer.render(encoder, render_target);
+
+            // Bloom is composited into exactly the same rectangle.
+            if let Some(bloom) = &self.bloom_effect {
+                bloom.render(encoder, render_target, bloom_viewport);
+            }
+
+            // UI stays on top.
             framework.render(encoder, render_target, context);
+
             Ok(())
         });
         if render_result.is_err() {
@@ -166,6 +209,10 @@ impl ApplicationHandler for App {
         let size = window.inner_size();
         let scale_factor = window.scale_factor() as f32;
         let framework = ui::Framework::new(&window, size.width, size.height, scale_factor, &pixels);
+
+        let surface_format = pixels.render_texture_format();
+        self.bloom_effect = Some(bloom::BloomEffect::new(pixels.device(), surface_format));
+
         self.framework = Some(framework);
         self.pixels = Some(pixels);
         self.window = Some(window);

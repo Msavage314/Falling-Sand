@@ -18,6 +18,17 @@ impl Color {
         };
     }
 }
+impl std::ops::Mul<f32> for Color {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self::Output {
+        Color {
+            r: self.r * rhs,
+            g: self.g * rhs,
+            b: self.b * rhs,
+            a: self.a,
+        }
+    }
+}
 
 use serde::{Deserialize, Serialize};
 
