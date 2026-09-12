@@ -1,5 +1,5 @@
+use crate::cell::Color;
 use bitflags::bitflags;
-use macroquad::color::Color;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 

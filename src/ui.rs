@@ -1,13 +1,29 @@
 use crate::Grid;
-use crate::marching_squares::{Segment, generate_lines};
+use crate::cell::Color;
 use crate::materials::MaterialID;
-use core::task::Poll;
-use egui_macroquad::egui;
-use i_triangle::float::triangulatable::Triangulatable;
-use i_triangle::float::triangulation;
-use macroquad::prelude::*;
+use egui;
+use egui_wgpu::RendererOptions;
+use pixels::Pixels;
+use pixels::PixelsContext;
+use pixels::wgpu;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
+use winit::event::WindowEvent;
+use winit::window::Window;
+
+/// Stores the UI structure and state, but doesn't actually contain information to render it.
+///
+/// # Arguments
+/// - `active` - The currently active material, which will be drawn when the user clicks.
+/// - `radius` - The current radius of the brush the user is drawing with.
+/// - `playing` - Whether the simulation is currently playing.
+/// - `cached_total` - stores the total number of pixels alive currently. stores a cached value to improve performance
+/// - `cached_counts` - HashMap of how many pixels of each material are alive currently
+/// - `draw_chunk_debug` - Whether or not to draw the chunk debug overlay (currently broken)
+/// - `draw_marching_squares` - Whether or not to draw the marching squares overlay (currently broken)
+/// - `fps` - Current simulation fps. What will be displayed to the the fps counter debug info
+/// - `screen_width` - the width of the window that is being rendered into
+/// - `screen_height` - the height of the window that is being rendered into
 pub struct UiState {
     pub active: MaterialID,
     pub radius: i32,
@@ -17,6 +33,8 @@ pub struct UiState {
     draw_chunk_debug: bool,
     draw_marching_squares: bool,
     fps: i32,
+    pub screen_width: f32,
+    pub screen_height: f32,
 }
 impl UiState {
     pub fn new() -> Self {
@@ -29,50 +47,38 @@ impl UiState {
             draw_chunk_debug: false,
             draw_marching_squares: false,
             fps: 0,
+            screen_width: 0.0,
+            screen_height: 0.0,
         };
     }
+    /// Refresh the cached material and fps values.
     pub fn refresh_cache(&mut self, grid: &mut Grid) {
         self.cached_total = grid.total_alive();
         self.cached_counts = grid.count_by_material();
-        self.fps = get_fps()
+    }
+    pub fn set_fps(&mut self, fps: i32) {
+        self.fps = fps;
+    }
+    /// describes the ui to the egui::Ui context. calls the other draw functions
+    ///
+    /// # UI contents
+    /// - Materials panel - allows you to select different materials
+    /// - info panel - shows current fps, and current material counts
+    /// - controls - floating window with things like play, pause and clear
+    /// - current - shows what is currently underneath the mouse cursor
+    pub fn draw(&mut self, ui: &mut egui::Ui, grid: &mut Grid) {
+        let (_rx, _ry, _rw, _rh) = self.compute_grid_dest_rect(grid.width, grid.height);
+        let panel_width = 200.0;
+        self.draw_materials_panel(ui, panel_width);
+        self.draw_info_panel(ui, panel_width, grid);
+        self.draw_controls_window(ui, grid);
+        self.draw_current_window(ui, grid);
     }
 
-    pub fn draw(&mut self, grid: &mut Grid) -> bool {
-        let mut wants_pointer = false;
-        let (_rx, _ry, rw, _rh) = compute_grid_dest_rect(grid.width, grid.height);
-        let pixel_scale = rw / grid.width as f32;
-        let (mx, my) = mouse_position();
-
-        draw_circle_lines(mx, my, self.radius as f32 * pixel_scale, 1.5, WHITE);
-
-        egui_macroquad::ui(|egui_ctx| {
-            wants_pointer = egui_ctx.wants_pointer_input();
-
-            if let Some((_panel_x, _panel_y, panel_width, _panel_height)) =
-                compute_side_panel_rect(grid.width, grid.height)
-            {
-                self.draw_materials_panel(egui_ctx, panel_width);
-                self.draw_info_panel(egui_ctx, panel_width, grid);
-                self.draw_controls_window(egui_ctx, grid);
-                self.draw_current_window(egui_ctx, grid);
-            }
-        });
-        if self.draw_chunk_debug {
-            self.draw_chunk_debug(grid);
-        }
-        // if self.draw_marching_squares {
-        //     self.draw_marching_squares(grid);
-        //     self.draw_polygons(grid);
-        //     self.draw_triangulation(grid);
-        // }
-
-        return wants_pointer;
-    }
-
-    fn draw_materials_panel(&mut self, egui_ctx: &egui::Context, panel_width: f32) {
-        egui::SidePanel::right("Materials")
-            .exact_width(panel_width)
-            .show(egui_ctx, |ui| {
+    fn draw_materials_panel(&mut self, ui: &mut egui::Ui, panel_width: f32) {
+        egui::Panel::right("Materials")
+            .exact_size(panel_width)
+            .show_inside(ui, |ui| {
                 ui.heading("Materials");
                 ui.separator();
 
@@ -98,10 +104,10 @@ impl UiState {
             });
     }
 
-    fn draw_info_panel(&mut self, egui_ctx: &egui::Context, panel_width: f32, grid: &mut Grid) {
-        egui::SidePanel::left("Info")
-            .exact_width(panel_width)
-            .show(egui_ctx, |ui| {
+    fn draw_info_panel(&mut self, ui: &mut egui::Ui, panel_width: f32, grid: &mut Grid) {
+        egui::Panel::left("Info")
+            .exact_size(panel_width)
+            .show_inside(ui, |ui| {
                 ui.heading("Debug");
                 ui.label(format!("FPS: {}", self.fps));
                 ui.separator();
@@ -115,10 +121,10 @@ impl UiState {
                     }
                 }
                 ui.separator();
-                ui.label(format!(
-                    "{}",
-                    crate::marching_squares::generate_lines(grid).iter().len()
-                ));
+                // ui.label(format!(
+                //     "{}",
+                //     crate::marching_squares::generate_lines(grid).iter().len()
+                // ));
                 ui.separator();
                 ui.checkbox(&mut self.draw_chunk_debug, "Chunk Debug");
                 ui.checkbox(&mut self.draw_marching_squares, "Marching Squares Debug");
@@ -148,8 +154,8 @@ impl UiState {
             });
     }
 
-    fn draw_controls_window(&mut self, egui_ctx: &egui::Context, grid: &mut Grid) {
-        egui::Window::new("controls").show(egui_ctx, |ui| {
+    fn draw_controls_window(&mut self, ui: &egui::Context, grid: &mut Grid) {
+        egui::Window::new("controls").show(ui, |ui| {
             let button_text = if self.playing {
                 "⏸ Pause"
             } else {
@@ -163,18 +169,18 @@ impl UiState {
             }
         });
     }
-    fn draw_current_window(&mut self, egui_ctx: &egui::Context, grid: &Grid) {
-        egui::Window::new("Current").show(egui_ctx, |ui| {
-            let (mx, my) = mouse_position();
-            let (gx, gy) = screen_to_grid(grid.width, grid.height, mx, my);
+    fn draw_current_window(&mut self, ui: &egui::Ui, grid: &Grid) {
+        egui::Window::new("Current").show(ui, |ui| {
+            let (mx, my) = (0.0, 0.0);
+            let (gx, gy) = self.screen_to_grid(grid.width, grid.height, mx, my);
             ui.label(format!("Current Material: {:?}", grid.get(gx, gy).material));
             ui.label(format!("Current Stain: {:?}", grid.get(gx, gy).stain));
             ui.label(format!("Current Status: {:?}", grid.get(gx, gy).awake));
             ui.label(format!("Current Position: ({:?},{:?})", gx, gy))
         });
     }
-    fn draw_chunk_debug(&mut self, grid: &mut Grid) {
-        let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
+    fn _draw_chunk_debug(&mut self, grid: &mut Grid) {
+        let (rx, ry, rw, rh) = self.compute_grid_dest_rect(grid.width, grid.height);
         let scale_x = rw / grid.width as f32;
         let scale_y = rh / grid.height as f32;
 
@@ -183,26 +189,26 @@ impl UiState {
                 let idx = cy * grid.chunks_x + cx;
                 let active = grid.chunks_need_update[idx];
 
-                let px = rx + (cx * grid.chunk_size) as f32 * scale_x;
-                let py = ry + (cy * grid.chunk_size) as f32 * scale_y;
+                let _px = rx + (cx * grid.chunk_size) as f32 * scale_x;
+                let _py = ry + (cy * grid.chunk_size) as f32 * scale_y;
 
-                let pw = grid.chunk_size as f32 * scale_x;
-                let ph = grid.chunk_size as f32 * scale_y;
+                let _pw = grid.chunk_size as f32 * scale_x;
+                let _ph = grid.chunk_size as f32 * scale_y;
 
-                let color = if active {
+                let _color = if active {
                     Color::new(1.0, 0.2, 0.2, 0.5)
                 } else {
                     Color::new(0.2, 0.2, 0.2, 0.15)
                 };
-                draw_rectangle_lines(px, py, pw, ph, 10.0, color);
+                //draw_rectangle_lines(px, py, pw, ph, 10.0, color);
             }
         }
     }
-    fn draw_polygons(&mut self, grid: &Grid) {
+    fn _draw_polygons(&mut self, grid: &Grid) {
         let polygons = crate::marching_squares::stitch_polygons(
             &crate::marching_squares::generate_lines(grid),
         );
-        let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
+        let (rx, ry, rw, rh) = self.compute_grid_dest_rect(grid.width, grid.height);
 
         let scale_x = rw / grid.width as f32;
         let scale_y = rh / grid.height as f32;
@@ -216,93 +222,227 @@ impl UiState {
                     polygon.points.first().unwrap(),
                 )))
             {
-                let x1 = rx + (a.0 + 0.5) * scale_x;
-                let y1 = ry + (a.1 + 0.5) * scale_y;
+                let _x1 = rx + (a.0 + 0.5) * scale_x;
+                let _y1 = ry + (a.1 + 0.5) * scale_y;
 
-                let x2 = rx + (b.0 + 0.5) * scale_x;
-                let y2 = ry + (b.1 + 0.5) * scale_y;
+                let _x2 = rx + (b.0 + 0.5) * scale_x;
+                let _y2 = ry + (b.1 + 0.5) * scale_y;
 
-                draw_line(x1, y1, x2, y2, 2.0, RED);
+                //draw_line(x1, y1, x2, y2, 2.0, RED);
             }
         }
     }
-    fn draw_marching_squares(&mut self, grid: &Grid) {
+    fn _draw_marching_squares(&mut self, grid: &Grid) {
         let segments = crate::marching_squares::generate_lines(grid);
-        let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
+        let (rx, ry, rw, rh) = self.compute_grid_dest_rect(grid.width, grid.height);
 
         let scale_x = rw / grid.width as f32;
         let scale_y = rh / grid.height as f32;
 
         for segment in segments {
-            let x1 = rx + (segment.start.0 + 0.5) * scale_x;
-            let y1 = ry + (segment.start.1 + 0.5) * scale_y;
+            let _x1 = rx + (segment.start.0 + 0.5) * scale_x;
+            let _y1 = ry + (segment.start.1 + 0.5) * scale_y;
 
-            let x2 = rx + (segment.end.0 + 0.5) * scale_x;
-            let y2 = ry + (segment.end.1 + 0.5) * scale_y;
+            let _x2 = rx + (segment.end.0 + 0.5) * scale_x;
+            let _y2 = ry + (segment.end.1 + 0.5) * scale_y;
 
-            draw_line(x1, y1, x2, y2, 2.0, BLUE);
+            // draw_line(x1, y1, x2, y2, 2.0, BLUE);
         }
     }
-    fn draw_triangulation(&mut self, grid: &Grid) {
-        let segments = crate::marching_squares::generate_lines(grid);
-        let polygons = crate::marching_squares::stitch_polygons(&segments);
-        let triangulations = crate::marching_squares::triangulate(&polygons);
+    // fn draw_triangulation(&mut self, grid: &Grid) {
+    //     let segments = crate::marching_squares::generate_lines(grid);
+    //     let polygons = crate::marching_squares::stitch_polygons(&segments);
+    //     let triangulations = crate::marching_squares::triangulate(&polygons);
 
-        let (rx, ry, rw, rh) = compute_grid_dest_rect(grid.width, grid.height);
-        let scale_x = rw / grid.width as f32;
-        let scale_y = rh / grid.height as f32;
+    //     let (rx, ry, rw, rh) = self.compute_grid_dest_rect(grid.width, grid.height);
+    //     let scale_x = rw / grid.width as f32;
+    //     let scale_y = rh / grid.height as f32;
 
-        let to_screen = |p: [f64; 2]| -> Vec2 {
-            vec2(
-                rx + (p[0] as f32 + 0.5) * scale_x,
-                ry + (p[1] as f32 + 0.5) * scale_y,
-            )
+    //     let to_screen = |p: [f64; 2]| -> Vec2 {
+    //         Vec2(
+    //             rx + (p[0] as f32 + 0.5) * scale_x,
+    //             ry + (p[1] as f32 + 0.5) * scale_y,
+    //         )
+    //     };
+    //     for triangulation in &triangulations {
+    //         for tri in triangulation.indices.chunks(3) {
+    //             let a = to_screen(triangulation.points[tri[0] as usize]);
+    //             let b = to_screen(triangulation.points[tri[1] as usize]);
+    //             let c = to_screen(triangulation.points[tri[2] as usize]);
+    //         }
+    //     }
+    // }
+
+    pub fn compute_grid_dest_rect(&self, width: usize, height: usize) -> (f32, f32, f32, f32) {
+        let grid_aspect = width as f32 / height as f32;
+        let screen_aspect = self.screen_width / self.screen_height;
+
+        let (w, h) = if screen_aspect > grid_aspect {
+            let h = self.screen_height;
+            let w = h * grid_aspect;
+            (w, h)
+        } else {
+            let w = self.screen_width;
+            let h = w / grid_aspect;
+            (w, h)
         };
-        for triangulation in &triangulations {
-            for tri in triangulation.indices.chunks(3) {
-                let a = to_screen(triangulation.points[tri[0] as usize]);
-                let b = to_screen(triangulation.points[tri[1] as usize]);
-                let c = to_screen(triangulation.points[tri[2] as usize]);
 
-                draw_triangle_lines(a, b, c, 2.0, GREEN);
-            }
+        let x = (self.screen_width - w) * 0.5;
+        let y = (self.screen_height - h) * 0.5;
+        (x, y, w, h)
+    }
+    pub fn compute_side_panel_rect(
+        &self,
+        width: usize,
+        height: usize,
+        _screen_w: f32,
+        screen_h: f32,
+    ) -> Option<(f32, f32, f32, f32)> {
+        let (grid_rx, _grid_ry, grid_rw, _grid_rh) = self.compute_grid_dest_rect(width, height);
+        // Space to the right of the grid
+        let panel_x = grid_rx + grid_rw;
+        let panel_w = self.screen_width - panel_x;
+
+        if panel_w < 40.0 {
+            return None; // No meaningful space
+        }
+        Some((panel_x, 0.0, panel_w, screen_h))
+    }
+
+    pub fn screen_to_grid(
+        &self,
+        width: usize,
+        height: usize,
+        screen_x: f32,
+        screen_y: f32,
+    ) -> (i32, i32) {
+        let (rx, ry, rw, rh) = self.compute_grid_dest_rect(width, height);
+        let grid_x = ((screen_x - rx) / rw * width as f32) as i32;
+        let grid_y = ((screen_y - ry) / rh * height as f32) as i32;
+        (grid_x, grid_y)
+    }
+}
+
+/// Owns the egui rendering, textures etc stuff that is required to actually draw stuff
+/// also handles raw events. Handles the lower level stuff, whereas UiState actually contains
+/// code to draw the ui.
+/// Egui requires egui context, window states and renderer objects which are stored in here
+/// Holds one instance of each: `egui::Context`, `egui_winit::State`, `egui_wgpu::Renderer`,
+/// basically what is required to draw the UI onto the screen.
+pub struct Framework {
+    egui_ctx: egui::Context,
+    egui_state: egui_winit::State,
+    screen_descriptor: egui_wgpu::ScreenDescriptor,
+    renderer: egui_wgpu::Renderer,
+    paint_jobs: Vec<egui::ClippedPrimitive>,
+    textures: egui::TexturesDelta,
+}
+impl Framework {
+    pub fn new(
+        window: &Window,
+        width: u32,
+        height: u32,
+        scale_factor: f32,
+        pixels: &Pixels,
+    ) -> Self {
+        let max_texture_size = pixels.device().limits().max_texture_dimension_2d as usize;
+
+        let egui_ctx = egui::Context::default();
+        let egui_state = egui_winit::State::new(
+            egui_ctx.clone(),
+            egui::ViewportId::ROOT,
+            window,
+            Some(scale_factor),
+            None,
+            Some(max_texture_size),
+        );
+        let screen_descriptor = egui_wgpu::ScreenDescriptor {
+            size_in_pixels: [width, height],
+            pixels_per_point: scale_factor,
+        };
+        let renderer = egui_wgpu::Renderer::new(
+            pixels.device(),
+            pixels.render_texture_format(),
+            RendererOptions {
+                ..Default::default()
+            },
+        );
+        Self {
+            egui_ctx,
+            egui_state,
+            screen_descriptor,
+            renderer,
+            paint_jobs: Vec::new(),
+            textures: egui::TexturesDelta::default(),
         }
     }
-}
-pub fn compute_grid_dest_rect(width: usize, height: usize) -> (f32, f32, f32, f32) {
-    let grid_aspect = width as f32 / height as f32;
-    let screen_aspect = screen_width() / screen_height();
 
-    let (w, h) = if screen_aspect > grid_aspect {
-        // window wider than grid -> letterbox left/right
-        let h = screen_height();
-        let w = h * grid_aspect;
-        (w, h)
-    } else {
-        // window taller than grid -> letterbox top/bottom
-        let w = screen_width();
-        let h = w / grid_aspect;
-        (w, h)
-    };
-
-    let x = (screen_width() - w) * 0.5;
-    let y = (screen_height() - h) * 0.5;
-    return (x, y, w, h);
-}
-pub fn compute_side_panel_rect(width: usize, height: usize) -> Option<(f32, f32, f32, f32)> {
-    let (grid_rx, _grid_ry, grid_rw, _grid_rh) = compute_grid_dest_rect(width, height);
-    // Space to the right of the grid
-    let panel_x = grid_rx + grid_rw;
-    let panel_w = screen_width() - panel_x;
-
-    if panel_w < 40.0 {
-        return None; // No meaningful space
+    pub fn handle_event(&mut self, window: &Window, event: &WindowEvent) -> bool {
+        return self.egui_state.on_window_event(window, event).consumed;
     }
-    Some((panel_x, 0.0, panel_w, screen_height()))
-}
-pub fn screen_to_grid(width: usize, height: usize, screen_x: f32, screen_y: f32) -> (i32, i32) {
-    let (rx, ry, rw, rh) = compute_grid_dest_rect(width, height);
-    let grid_x = ((screen_x - rx) / rw * width as f32) as i32;
-    let grid_y = ((screen_y - ry) / rh * height as f32) as i32;
-    (grid_x, grid_y)
+    pub fn resize(&mut self, width: u32, height: u32) {
+        if width > 0 && height > 0 {
+            self.screen_descriptor.size_in_pixels = [width, height]
+        }
+    }
+    pub fn ctx(&self) -> &egui::Context {
+        &self.egui_ctx
+    }
+    pub fn prepare(&mut self, window: &Window, run_ui: impl FnMut(&mut egui::Ui)) {
+        let raw_input = self.egui_state.take_egui_input(window);
+        let output = self.egui_ctx.run_ui(raw_input, run_ui);
+        // textures delta is output textures since last frame
+        self.textures.append(output.textures_delta);
+        self.egui_state
+            .handle_platform_output(window, output.platform_output);
+        self.paint_jobs = self
+            .egui_ctx
+            .tessellate(output.shapes, output.pixels_per_point)
+    }
+
+    pub fn render(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        render_target: &wgpu::TextureView,
+        context: &PixelsContext,
+    ) {
+        // add new textures
+        for (id, delta) in &self.textures.set {
+            self.renderer
+                .update_texture(&context.device, &context.queue, *id, delta);
+        }
+        self.renderer.update_buffers(
+            &context.device,
+            &context.queue,
+            encoder,
+            &self.paint_jobs,
+            &self.screen_descriptor,
+        );
+        let mut rpass = encoder
+            .begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("egui"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: render_target,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load, // draw on top of sand texture,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                ..Default::default()
+            })
+            .forget_lifetime();
+
+        self.renderer
+            .render(&mut rpass, &self.paint_jobs, &self.screen_descriptor);
+        drop(rpass);
+        for id in &self.textures.free {
+            self.renderer.free_texture(id);
+        }
+        self.textures.clear();
+    }
 }

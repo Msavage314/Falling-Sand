@@ -563,9 +563,8 @@ pub static REACTIONS_BY_MATERIAL: LazyLock<[Vec<&'static Reaction>; MATERIAL_COU
 
 #[cfg(test)]
 mod tests {
-    use macroquad::prelude::Color;
-
     use super::*;
+    use crate::cell::Color;
 
     #[test]
     fn material_reactant_matches() {

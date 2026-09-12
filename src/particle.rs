@@ -1,4 +1,4 @@
-use egui_macroquad::egui::Vec2;
+use egui::Vec2;
 use serde::{Deserialize, Serialize};
 
 use crate::materials::MaterialID;

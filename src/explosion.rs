@@ -42,8 +42,8 @@ impl Explosion for FireExplosion {
                         grid.add_particle(
                             x + dx,
                             y + dy,
-                            macroquad::rand::gen_range(-self.velocity, self.velocity),
-                            macroquad::rand::gen_range(-self.velocity, self.velocity),
+                            rand::random_range(-self.velocity..self.velocity),
+                            rand::random_range(-self.velocity..self.velocity),
                             MaterialID::Fire,
                         )
                     }
@@ -70,8 +70,8 @@ impl Explosion for AcidExplosion {
                         grid.add_particle(
                             x + dx,
                             y + dy,
-                            macroquad::rand::gen_range(-1.0, 1.0),
-                            macroquad::rand::gen_range(-1.0, 1.0),
+                            rand::random_range(-1.0..1.0),
+                            rand::random_range(-1.0..1.0),
                             MaterialID::Fire,
                         )
                     }
@@ -79,8 +79,8 @@ impl Explosion for AcidExplosion {
                         grid.add_particle(
                             x + dx,
                             y + dy,
-                            macroquad::rand::gen_range(-5.0, 5.0),
-                            macroquad::rand::gen_range(-5.0, 5.0),
+                            rand::random_range(-5.0..5.0),
+                            rand::random_range(-5.0..5.0),
                             MaterialID::Acid,
                         )
                     }
@@ -158,8 +158,8 @@ impl RayTracedExplosion {
 
                         let vy = (y1 - y0) as f32;
                         let vx = (x1 - x0) as f32;
-                        let vx = vx + macroquad::rand::gen_range(-spread, spread);
-                        let vy = vy + macroquad::rand::gen_range(-spread, spread);
+                        let vx = vx + rand::random_range(-spread..spread);
+                        let vy = vy + rand::random_range(-spread..spread);
                         let len = (vx * vx + vy * vy).sqrt();
 
                         let (vx, vy) = if len > 0.0 {
@@ -183,8 +183,8 @@ impl RayTracedExplosion {
 
                             let vy = (y1 - y0) as f32;
                             let vx = (x1 - x0) as f32;
-                            let vx = vx + macroquad::rand::gen_range(-spread, spread);
-                            let vy = vy + macroquad::rand::gen_range(-spread, spread);
+                            let vx = vx + rand::random_range(-spread..spread);
+                            let vy = vy + rand::random_range(-spread..spread);
                             let len = (vx * vx + vy * vy).sqrt();
 
                             let (vx, vy) = if len > 0.0 {

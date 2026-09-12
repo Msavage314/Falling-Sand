@@ -9,8 +9,7 @@ use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
 use core::ops::Index;
-use egui_macroquad::egui::vec2;
-use macroquad::prelude::*;
+use egui::vec2;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -95,7 +94,7 @@ impl Grid {
             if cell.material == MaterialID::Empty {
                 continue;
             }
-            if macroquad::rand::gen_range(0.0, 1.0) < cell.material.properties().wake_chance {
+            if rng::chance(cell.material.properties().wake_chance) {
                 self.cells[ny as usize * self.width + nx as usize].awake = true;
             }
         }
@@ -288,14 +287,14 @@ impl Grid {
             return;
         }
         if stain.kind == StainKind::Wet {
-            stain.intensity -= 0.05 * get_frame_time(); // tune evaporation rate
+            stain.intensity -= 0.05; // tune evaporation rate
             if stain.intensity <= 0.0 {
                 self.set_stain(x, y, None);
                 return;
             }
         }
 
-        stain.timer -= get_frame_time();
+        stain.timer -= 1.0 / 60.0;
         if stain.timer <= 0.0 {
             self.set_stain(x, y, None);
             if stain.kind == StainKind::Burning {
@@ -444,7 +443,7 @@ impl Grid {
             }
         }
         if cell.behaviors().contains(Behavior::FLOWS) {
-            let flow = macroquad::rand::gen_range(0, properties.flow_distance * 2) as i32;
+            let flow = rand::random_range(0..properties.flow_distance * 2) as i32;
             let left_first = rng::chance(0.5);
             let falling = !cell.behaviors().contains(Behavior::RISES);
 
