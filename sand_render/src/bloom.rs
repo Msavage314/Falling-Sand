@@ -1,9 +1,10 @@
-use crate::config;
-use sand_render::fullscreen_pass::FullscreenPass;
+use crate::fullscreen_pass::FullscreenPass;
 pub struct BloomEffect {
-    sampler: pixels::wgpu::Sampler,
+    width: usize,
+    height: usize,
+    _sampler: pixels::wgpu::Sampler,
     source_texture: pixels::wgpu::Texture,
-    source_view: pixels::wgpu::TextureView,
+    _source_view: pixels::wgpu::TextureView,
     blur_a_view: pixels::wgpu::TextureView,
     blur_b_view: pixels::wgpu::TextureView,
     blur_pass: FullscreenPass,
@@ -14,9 +15,12 @@ pub struct BloomEffect {
 }
 
 impl BloomEffect {
-    pub fn new(device: &pixels::wgpu::Device, surface_format: pixels::wgpu::TextureFormat) -> Self {
-        let width = config::WIDTH as u32;
-        let height = config::HEIGHT as u32;
+    pub fn new(
+        device: &pixels::wgpu::Device,
+        surface_format: pixels::wgpu::TextureFormat,
+        width: u32,
+        height: u32,
+    ) -> Self {
         let format = pixels::wgpu::TextureFormat::Rgba8UnormSrgb;
 
         let make_texture = |label: &str| {
@@ -97,11 +101,13 @@ impl BloomEffect {
         let composite_group = composite_pass.bind_group(device, &blur_b_view, &sampler, None);
 
         Self {
+            width: width as usize,
+            height: height as usize,
             blur_a_view,
             blur_b_view,
-            sampler,
+            _sampler: sampler,
             source_texture,
-            source_view,
+            _source_view: source_view,
             blur_pass,
             horizontal_group,
             vertical_group,
@@ -145,12 +151,12 @@ impl BloomEffect {
             bloom_buffer,
             pixels::wgpu::TexelCopyBufferLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * config::WIDTH as u32),
-                rows_per_image: Some(config::HEIGHT as u32),
+                bytes_per_row: Some(4 * self.width as u32),
+                rows_per_image: Some(self.height as u32),
             },
             pixels::wgpu::Extent3d {
-                width: config::WIDTH as u32,
-                height: config::HEIGHT as u32,
+                width: self.width as u32,
+                height: self.height as u32,
                 depth_or_array_layers: 1,
             },
         );

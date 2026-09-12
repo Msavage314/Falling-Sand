@@ -1,6 +1,4 @@
 use crate::cell::Color;
-use crate::materials::MaterialID;
-use crate::stains::Stain;
 use crate::{simulation, stains::StainKind};
 /// standard colors are drawn to frame. bloom is pixels which should be bloomed
 pub fn draw(frame: &mut [u8], bloom: &mut [u8], grid: &simulation::Grid, toggle_bloom: bool) {

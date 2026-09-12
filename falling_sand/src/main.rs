@@ -6,7 +6,6 @@
 /// - egui-winit - translates winit `WindowEvents` into egui's input format and egui's output (cursor icon, clipboard) back into winit
 /// - egui-wgpu - takes egui's output and renders it to the screen.
 ///
-mod bloom;
 pub mod cell;
 pub mod config;
 pub mod explosion;
@@ -24,6 +23,7 @@ use crate::ui::UiState;
 use core::time::Duration;
 use materials::MaterialID;
 use pixels::{Pixels, SurfaceTexture};
+use sand_render::framework::Framework;
 use simulation::Grid;
 use std::sync::Arc;
 use std::time::Instant;
@@ -35,13 +35,12 @@ use winit::{
 };
 
 /// Stores the whole falling sand simulation and rendering information
-
 struct App {
     /// The window to draw onto
     window: Option<Arc<Window>>,
     /// a 2d pixel buffer that will be written onto from `render`
     pixels: Option<Pixels<'static>>,
-    framework: Option<crate::ui::Framework>,
+    framework: Option<Framework>,
     /// stores the simulation Grid and contains update code
     grid: Grid,
     ui: UiState,
@@ -57,12 +56,12 @@ struct App {
     fps_window_start: Instant,
     fps_frames_this_window: u32,
     bloom_buffer: Vec<u8>,
-    bloom_effect: Option<crate::bloom::BloomEffect>,
+    bloom_effect: Option<sand_render::bloom::BloomEffect>,
 }
 impl App {
     fn new() -> Self {
         let ui = UiState::new();
-        let mut grid = Grid::new(
+        let grid = Grid::new(
             config::WIDTH,
             config::HEIGHT,
             MaterialID::DenseRock,
@@ -216,10 +215,15 @@ impl ApplicationHandler for App {
         pixels.set_scaling_mode(pixels::ScalingMode::Fill);
         let size = window.inner_size();
         let scale_factor = window.scale_factor() as f32;
-        let framework = ui::Framework::new(&window, size.width, size.height, scale_factor, &pixels);
+        let framework = Framework::new(&window, size.width, size.height, scale_factor, &pixels);
 
         let surface_format = pixels.render_texture_format();
-        self.bloom_effect = Some(bloom::BloomEffect::new(pixels.device(), surface_format));
+        self.bloom_effect = Some(sand_render::bloom::BloomEffect::new(
+            pixels.device(),
+            surface_format,
+            config::WIDTH as u32,
+            config::HEIGHT as u32,
+        ));
 
         self.framework = Some(framework);
         self.pixels = Some(pixels);

@@ -2,6 +2,11 @@
     "cSpell.words": [
         "egui",
         "signum",
-        "triangulatable"
+        "Srgb",
+        "texel",
+        "Texel",
+        "triangulatable",
+        "Unorm",
+        "wgsl"
     ]
 }

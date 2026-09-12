@@ -303,7 +303,7 @@ pub static REACTIONS: &[Reaction] = &[
         b: Reactant::Behavior(Behavior::PERMEABLE),
 
         output_a: Some(ReactionOutcome {
-            apply_fn: |a, _b| {
+            apply_fn: |_a, _b| {
                 if rng::chance(0.1) {
                     Product::Material(MaterialID::Empty)
                 } else {
