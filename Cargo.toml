@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 bitflags = "2.13.1"
+bytemuck = "1.25.2"
 egui = "0.34.2"
 egui-wgpu = "0.34.2"
 egui-winit = "0.34.2"

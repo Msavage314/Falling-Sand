@@ -24,6 +24,8 @@ bitflags! {
 
         const HOT = 1<<9; // Causes the wet stain to disappear and causes water to evaporate
 
+        const BLOOM = 1<<10; // has glowing effect
+
         const POWDER = Self::FALLS.bits() | Self::GRANULAR.bits() | Self::SAND.bits();
         const LIQUID = Self::FALLS.bits() | Self::FLOWS.bits() | Self::GRANULAR.bits();
         const GAS = Self::RISES.bits() | Self::FLOWS.bits();
@@ -134,6 +136,7 @@ impl MaterialID {
                 flow_distance: 1,
                 acid_resistance: 0.3,
                 cools_to: MaterialID::Stone,
+                bloom: 1.0,
                 ..Default::default()
             },
             MaterialID::Steam => MaterialProperties {
@@ -142,6 +145,7 @@ impl MaterialID {
                 color: |_x, _y| Color::new(0.9, 0.9, 0.9, 1.0),
                 flow_distance: 6,
                 acid_resistance: 0.1,
+                bloom: 1.0,
                 ..Default::default()
             },
             MaterialID::Dirt => MaterialProperties {
@@ -194,6 +198,7 @@ impl MaterialID {
                 density: 0.1,
                 color: |_x, _y| Color::new(1.0, 0.5, 0.0, 1.0),
                 flow_distance: 1,
+                bloom: 1.0,
                 ..Default::default()
             },
             MaterialID::Smoke => MaterialProperties {
@@ -202,6 +207,7 @@ impl MaterialID {
                 color: |_x, _y| Color::new(0.4, 0.4, 0.4, 1.0),
                 flow_distance: 2,
                 acid_resistance: 0.0,
+                bloom: 1.0,
                 ..Default::default()
             },
             MaterialID::Acid => MaterialProperties {
@@ -209,6 +215,7 @@ impl MaterialID {
                 density: 0.9,
                 color: |_x, _y| Color::new(0.14, 0.74, 0.31, 1.0),
                 flow_distance: 4,
+                bloom: 0.5,
                 ..Default::default()
             },
             MaterialID::DenseRock => MaterialProperties {
@@ -226,12 +233,14 @@ impl MaterialID {
                 flammability: 1.0,
                 burn_intensity: 5.0,
                 burn_time: 0.2,
+                bloom: 0.6,
                 ..Default::default()
             },
             MaterialID::Rainbow => MaterialProperties {
                 behavior: Behavior::POWDER,
                 density: 2.0,
                 color: |x, y| vary_color(rainbow_color(x, y), 0.1, x, y),
+                bloom: 0.3,
                 ..Default::default()
             },
             MaterialID::Coal => MaterialProperties {
@@ -250,6 +259,7 @@ impl MaterialID {
                 color: |_x, _y| Color::from_rgba(107, 145, 19, 255),
                 flow_distance: 5,
                 acid_resistance: 0.4,
+                bloom: 1.0,
                 ..Default::default()
             },
             MaterialID::Gunpowder => MaterialProperties {
@@ -304,6 +314,8 @@ pub struct MaterialProperties {
 
     pub cools_to: MaterialID, // What the material turns into upon contact with something cool. Defaults to empty. For example, lava turns to stone
     pub explosion_resistance: f32,
+
+    pub bloom: f32,
 }
 
 impl Default for MaterialProperties {
@@ -321,6 +333,7 @@ impl Default for MaterialProperties {
             wake_chance: 1.0,
             cools_to: MaterialID::Empty,
             explosion_resistance: 1.0,
+            bloom: 0.0,
         }
     }
 }

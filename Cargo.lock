@@ -637,6 +637,7 @@ name = "falling_sand"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.13.1",
+ "bytemuck",
  "egui",
  "egui-wgpu",
  "egui-winit",
