@@ -1,4 +1,5 @@
-use crate::{config, fullscreen_pass::FullscreenPass};
+use crate::config;
+use sand_render::fullscreen_pass::FullscreenPass;
 pub struct BloomEffect {
     sampler: pixels::wgpu::Sampler,
     source_texture: pixels::wgpu::Texture,
@@ -76,7 +77,7 @@ impl BloomEffect {
         let blur_pass = FullscreenPass::new(
             device,
             "blur",
-            include_str!("../shaders/blur.wgsl"),
+            include_str!("../../shaders/blur.wgsl"),
             pixels::wgpu::TextureFormat::Rgba8UnormSrgb,
             pixels::wgpu::BlendState::REPLACE,
             Some(16),
@@ -88,7 +89,7 @@ impl BloomEffect {
         let composite_pass = FullscreenPass::new(
             device,
             "composite",
-            include_str!("../shaders/compsite.wgsl"),
+            include_str!("../../shaders/composite.wgsl"),
             surface_format,
             additive_blend,
             None,

@@ -18,3 +18,5 @@ serde_json = "1.0.151"
 strum = "0.28.0"
 strum_macros = "0.28.0"
 winit = "0.30.13"
+
+sand_render = {path="../sand_render"}

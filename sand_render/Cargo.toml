@@ -1,0 +1,11 @@
+[package]
+name = "sand_render"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+egui = "0.34.2"
+egui-wgpu = "0.34.2"
+egui-winit = "0.34.2"
+pixels = "0.17.2"
+winit = "0.30.13"

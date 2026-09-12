@@ -10,7 +10,6 @@ mod bloom;
 pub mod cell;
 pub mod config;
 pub mod explosion;
-mod fullscreen_pass;
 pub mod marching_squares;
 pub mod materials;
 pub mod particle;
@@ -20,10 +19,11 @@ pub mod rng;
 pub mod simulation;
 pub mod stains;
 pub mod ui;
+
 use crate::ui::UiState;
 use core::time::Duration;
 use materials::MaterialID;
-use pixels::{Pixels, SurfaceTexture, wgpu};
+use pixels::{Pixels, SurfaceTexture};
 use simulation::Grid;
 use std::sync::Arc;
 use std::time::Instant;
@@ -35,10 +35,14 @@ use winit::{
 };
 
 /// Stores the whole falling sand simulation and rendering information
+
 struct App {
+    /// The window to draw onto
     window: Option<Arc<Window>>,
+    /// a 2d pixel buffer that will be written onto from `render`
     pixels: Option<Pixels<'static>>,
     framework: Option<crate::ui::Framework>,
+    /// stores the simulation Grid and contains update code
     grid: Grid,
     ui: UiState,
     frame_count: u64,
@@ -64,7 +68,6 @@ impl App {
             MaterialID::DenseRock,
             config::CHUNK_SIZE,
         );
-        grid.set_material(0, 0, MaterialID::Water);
 
         return Self {
             window: None,
