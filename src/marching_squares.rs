@@ -146,7 +146,7 @@ fn signed_area(points: &[(f32, f32)]) -> f32 {
     let mut area = 0.0;
     for i in 0..points.len() {
         let (x1, y1) = points[i];
-        let (x2, _y2) = points[(i + 1) % points.len()];
+        let (x2, _cy2) = points[(i + 1) % points.len()];
         area += x1 * y1 - x2 * y1;
     }
     area * 0.5

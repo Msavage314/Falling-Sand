@@ -1,22 +1,29 @@
 use crate::Grid;
 use crate::cell::Color;
 use crate::materials::MaterialID;
-use core::task::Poll;
 use egui;
-use egui::Context;
-use egui::Vec2;
-use egui_wgpu::Renderer as EguiRenderer;
 use egui_wgpu::RendererOptions;
-use egui_winit::State as EguiWinitState;
-use i_triangle::i_overlay::float::scale;
 use pixels::Pixels;
 use pixels::PixelsContext;
 use pixels::wgpu;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
-use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
 use winit::window::Window;
+
+/// Stores the UI structure and state, but doesn't actually contain information to render it.
+///
+/// # Arguments
+/// - `active` - The currently active material, which will be drawn when the user clicks.
+/// - `radius` - The current radius of the brush the user is drawing with.
+/// - `playing` - Whether the simulation is currently playing.
+/// - `cached_total` - stores the total number of pixels alive currently. stores a cached value to improve performance
+/// - `cached_counts` - HashMap of how many pixels of each material are alive currently
+/// - `draw_chunk_debug` - Whether or not to draw the chunk debug overlay (currently broken)
+/// - `draw_marching_squares` - Whether or not to draw the marching squares overlay (currently broken)
+/// - `fps` - Current simulation fps. What will be displayed to the the fps counter debug info
+/// - `screen_width` - the width of the window that is being rendered into
+/// - `screen_height` - the height of the window that is being rendered into
 pub struct UiState {
     pub active: MaterialID,
     pub radius: i32,
@@ -44,34 +51,34 @@ impl UiState {
             screen_height: 0.0,
         };
     }
+    /// Refresh the cached material and fps values.
     pub fn refresh_cache(&mut self, grid: &mut Grid) {
         self.cached_total = grid.total_alive();
         self.cached_counts = grid.count_by_material();
-        self.fps = 0;
     }
-
-    pub fn draw(&mut self, ctx: &mut egui::Ui, grid: &mut Grid) {
-        let (_rx, _ry, rw, _rh) = self.compute_grid_dest_rect(grid.width, grid.height);
+    pub fn set_fps(&mut self, fps: i32) {
+        self.fps = fps;
+    }
+    /// describes the ui to the egui::Ui context. calls the other draw functions
+    ///
+    /// # UI contents
+    /// - Materials panel - allows you to select different materials
+    /// - info panel - shows current fps, and current material counts
+    /// - controls - floating window with things like play, pause and clear
+    /// - current - shows what is currently underneath the mouse cursor
+    pub fn draw(&mut self, ui: &mut egui::Ui, grid: &mut Grid) {
+        let (_rx, _ry, _rw, _rh) = self.compute_grid_dest_rect(grid.width, grid.height);
         let panel_width = 200.0;
-        self.draw_materials_panel(ctx, panel_width);
-        self.draw_info_panel(ctx, panel_width, grid);
-        self.draw_controls_window(ctx, grid);
-        self.draw_current_window(ctx, grid);
-
-        if self.draw_chunk_debug {
-            self.draw_chunk_debug(grid);
-        }
-        // if self.draw_marching_squares {
-        //     self.draw_marching_squares(grid);
-        //     self.draw_polygons(grid);
-        //     self.draw_triangulation(grid);
-        // }
+        self.draw_materials_panel(ui, panel_width);
+        self.draw_info_panel(ui, panel_width, grid);
+        self.draw_controls_window(ui, grid);
+        self.draw_current_window(ui, grid);
     }
 
-    fn draw_materials_panel(&mut self, egui_ctx: &mut egui::Ui, panel_width: f32) {
+    fn draw_materials_panel(&mut self, ui: &mut egui::Ui, panel_width: f32) {
         egui::Panel::right("Materials")
             .exact_size(panel_width)
-            .show(egui_ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.heading("Materials");
                 ui.separator();
 
@@ -97,10 +104,10 @@ impl UiState {
             });
     }
 
-    fn draw_info_panel(&mut self, egui_ctx: &mut egui::Ui, panel_width: f32, grid: &mut Grid) {
+    fn draw_info_panel(&mut self, ui: &mut egui::Ui, panel_width: f32, grid: &mut Grid) {
         egui::Panel::left("Info")
             .exact_size(panel_width)
-            .show(egui_ctx, |ui| {
+            .show_inside(ui, |ui| {
                 ui.heading("Debug");
                 ui.label(format!("FPS: {}", self.fps));
                 ui.separator();
@@ -147,8 +154,8 @@ impl UiState {
             });
     }
 
-    fn draw_controls_window(&mut self, egui_ctx: &egui::Context, grid: &mut Grid) {
-        egui::Window::new("controls").show(egui_ctx, |ui| {
+    fn draw_controls_window(&mut self, ui: &egui::Context, grid: &mut Grid) {
+        egui::Window::new("controls").show(ui, |ui| {
             let button_text = if self.playing {
                 "⏸ Pause"
             } else {
@@ -162,8 +169,8 @@ impl UiState {
             }
         });
     }
-    fn draw_current_window(&mut self, egui_ctx: &egui::Context, grid: &Grid) {
-        egui::Window::new("Current").show(egui_ctx, |ui| {
+    fn draw_current_window(&mut self, ui: &egui::Ui, grid: &Grid) {
+        egui::Window::new("Current").show(ui, |ui| {
             let (mx, my) = (0.0, 0.0);
             let (gx, gy) = self.screen_to_grid(grid.width, grid.height, mx, my);
             ui.label(format!("Current Material: {:?}", grid.get(gx, gy).material));
@@ -172,7 +179,7 @@ impl UiState {
             ui.label(format!("Current Position: ({:?},{:?})", gx, gy))
         });
     }
-    fn draw_chunk_debug(&mut self, grid: &mut Grid) {
+    fn _draw_chunk_debug(&mut self, grid: &mut Grid) {
         let (rx, ry, rw, rh) = self.compute_grid_dest_rect(grid.width, grid.height);
         let scale_x = rw / grid.width as f32;
         let scale_y = rh / grid.height as f32;
@@ -182,13 +189,13 @@ impl UiState {
                 let idx = cy * grid.chunks_x + cx;
                 let active = grid.chunks_need_update[idx];
 
-                let px = rx + (cx * grid.chunk_size) as f32 * scale_x;
-                let py = ry + (cy * grid.chunk_size) as f32 * scale_y;
+                let _px = rx + (cx * grid.chunk_size) as f32 * scale_x;
+                let _py = ry + (cy * grid.chunk_size) as f32 * scale_y;
 
-                let pw = grid.chunk_size as f32 * scale_x;
-                let ph = grid.chunk_size as f32 * scale_y;
+                let _pw = grid.chunk_size as f32 * scale_x;
+                let _ph = grid.chunk_size as f32 * scale_y;
 
-                let color = if active {
+                let _color = if active {
                     Color::new(1.0, 0.2, 0.2, 0.5)
                 } else {
                     Color::new(0.2, 0.2, 0.2, 0.15)
@@ -197,7 +204,7 @@ impl UiState {
             }
         }
     }
-    fn draw_polygons(&mut self, grid: &Grid) {
+    fn _draw_polygons(&mut self, grid: &Grid) {
         let polygons = crate::marching_squares::stitch_polygons(
             &crate::marching_squares::generate_lines(grid),
         );
@@ -215,17 +222,17 @@ impl UiState {
                     polygon.points.first().unwrap(),
                 )))
             {
-                let x1 = rx + (a.0 + 0.5) * scale_x;
-                let y1 = ry + (a.1 + 0.5) * scale_y;
+                let _x1 = rx + (a.0 + 0.5) * scale_x;
+                let _y1 = ry + (a.1 + 0.5) * scale_y;
 
-                let x2 = rx + (b.0 + 0.5) * scale_x;
-                let y2 = ry + (b.1 + 0.5) * scale_y;
+                let _x2 = rx + (b.0 + 0.5) * scale_x;
+                let _y2 = ry + (b.1 + 0.5) * scale_y;
 
                 //draw_line(x1, y1, x2, y2, 2.0, RED);
             }
         }
     }
-    fn draw_marching_squares(&mut self, grid: &Grid) {
+    fn _draw_marching_squares(&mut self, grid: &Grid) {
         let segments = crate::marching_squares::generate_lines(grid);
         let (rx, ry, rw, rh) = self.compute_grid_dest_rect(grid.width, grid.height);
 
@@ -233,11 +240,11 @@ impl UiState {
         let scale_y = rh / grid.height as f32;
 
         for segment in segments {
-            let x1 = rx + (segment.start.0 + 0.5) * scale_x;
-            let y1 = ry + (segment.start.1 + 0.5) * scale_y;
+            let _x1 = rx + (segment.start.0 + 0.5) * scale_x;
+            let _y1 = ry + (segment.start.1 + 0.5) * scale_y;
 
-            let x2 = rx + (segment.end.0 + 0.5) * scale_x;
-            let y2 = ry + (segment.end.1 + 0.5) * scale_y;
+            let _x2 = rx + (segment.end.0 + 0.5) * scale_x;
+            let _y2 = ry + (segment.end.1 + 0.5) * scale_y;
 
             // draw_line(x1, y1, x2, y2, 2.0, BLUE);
         }
@@ -288,7 +295,7 @@ impl UiState {
         &self,
         width: usize,
         height: usize,
-        screen_w: f32,
+        _screen_w: f32,
         screen_h: f32,
     ) -> Option<(f32, f32, f32, f32)> {
         let (grid_rx, _grid_ry, grid_rw, _grid_rh) = self.compute_grid_dest_rect(width, height);
@@ -320,6 +327,8 @@ impl UiState {
 /// also handles raw events. Handles the lower level stuff, whereas UiState actually contains
 /// code to draw the ui.
 /// Egui requires egui context, window states and renderer objects which are stored in here
+/// Holds one instance of each: `egui::Context`, `egui_winit::State`, `egui_wgpu::Renderer`,
+/// basically what is required to draw the UI onto the screen.
 pub struct Framework {
     egui_ctx: egui::Context,
     egui_state: egui_winit::State,

@@ -1,11 +1,11 @@
-//! 5 different libraries are used in order to render both the pixel display and the ui.
-//! They are as follows:
-//! - winit - Controls events (mouse/keyboard) and window resizing.
-//! - pixels - a `wgpu::Device`/`wgpu::Queue`/`wgpu::Surface` triple. stores rendered simulation image
-//! - egui (core) - pure UI logic, e.g. panels, text, labels, buttons etc.
-//! - egui-winit - translates winit `WindowEvents` into egui's input format and egui's output (cursor icon, clipboard) back into winit
-//! - egui-wgpu - takes egui's output and renders it to the screen.
-
+/// 5 different libraries are used in order to render both the pixel display and the ui.
+/// They are as follows:
+/// - winit - Controls events (mouse/keyboard) and window resizing.
+/// - pixels - a `wgpu::Device`/`wgpu::Queue`/`wgpu::Surface` triple. stores rendered simulation image
+/// - egui (core) - pure UI logic, e.g. panels, text, labels, buttons etc.
+/// - egui-winit - translates winit `WindowEvents` into egui's input format and egui's output (cursor icon, clipboard) back into winit
+/// - egui-wgpu - takes egui's output and renders it to the screen.
+///
 pub mod cell;
 pub mod config;
 pub mod explosion;
@@ -18,6 +18,7 @@ pub mod rng;
 pub mod simulation;
 pub mod stains;
 pub mod ui;
+use crate::ui::UiState;
 use core::time::Duration;
 use materials::MaterialID;
 use pixels::{Pixels, SurfaceTexture};
@@ -31,7 +32,7 @@ use winit::{
     window::Window,
 };
 
-use crate::ui::UiState;
+/// Stores the whole falling sand simulation and rendering information
 struct App {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
@@ -46,6 +47,9 @@ struct App {
     left_down: bool,
     right_down: bool,
     egui_wants_pointer: bool,
+    // fps tracking
+    fps_window_start: Instant,
+    fps_frames_this_window: u32,
 }
 impl App {
     fn new() -> Self {
@@ -71,6 +75,8 @@ impl App {
             left_down: false,
             right_down: false,
             egui_wants_pointer: false,
+            fps_window_start: Instant::now(),
+            fps_frames_this_window: 0,
         };
     }
     fn redraw(&mut self) {
@@ -79,8 +85,17 @@ impl App {
         else {
             return;
         };
+        // fps measurement
+        self.fps_frames_this_window += 1;
+        let elapsed = self.fps_window_start.elapsed();
+        if elapsed.as_secs_f32() >= 1.0 {
+            let fps = (self.fps_frames_this_window as f32 / elapsed.as_secs_f32()).round() as i32;
+            self.ui.set_fps(fps);
+            self.fps_frames_this_window = 0;
+            self.fps_window_start = Instant::now();
+        }
 
-        // 1. tick sim + paint from mouse (gate on last frame's wants_pointer)
+        // update simulation and draw mouse
         let now = Instant::now();
         if now >= self.next_tick && self.ui.playing {
             self.grid.update(self.frame_count % 2 == 0);
