@@ -461,7 +461,7 @@ pub static REACTIONS: &[Reaction] = &[
         output_b: Some(ReactionOutcome {
             apply_fn: |a, b| {
                 let source_intensity = a.stain.map(|s| s.intensity).unwrap_or(1.0);
-                let new_intensity = source_intensity - 0.01;
+                let new_intensity = source_intensity - 1.0 / b.material.properties().permeability;
 
                 let (target_intensity, target_timer) = b
                     .stain

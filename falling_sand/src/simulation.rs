@@ -62,19 +62,6 @@ impl Grid {
             chunks_y: height / chunk_size,
         };
     }
-
-    pub fn get(&self, x: i32, y: i32) -> Cell {
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
-            return Cell {
-                material: self.border,
-                stain: None,
-                color: (self.border.properties().color)(x, y),
-                awake: true,
-            };
-        }
-
-        return self.cells[y as usize * self.width + x as usize];
-    }
     fn disturb_neighbors(&mut self, x: i32, y: i32) {
         const OFFSETS: [(i32, i32); 8] = [
             (-1, -1),
@@ -96,12 +83,34 @@ impl Grid {
                 continue;
             }
             if rng::chance(cell.material.properties().wake_chance) {
-                self.cells[ny as usize * self.width + nx as usize].awake = true;
+                self[(nx, ny)].awake = true;
             }
         }
     }
+    #[inline]
+    fn in_bounds(&self, x: i32, y: i32) -> bool {
+        x >= 0 && y >= 0 && (x as usize) < self.width && (y as usize) < self.height
+    }
+    #[inline]
+    fn idx(&self, x: i32, y: i32) -> usize {
+        y as usize * self.width + x as usize
+    }
+
+    pub fn get(&self, x: i32, y: i32) -> Cell {
+        if !self.in_bounds(x, y) {
+            return Cell {
+                material: self.border,
+                stain: None,
+                color: (self.border.properties().color)(x, y),
+                awake: true,
+            };
+        }
+
+        return self[(x, y)];
+    }
+
     pub fn chunk_of(&self, x: i32, y: i32) -> Option<(usize, usize)> {
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+        if !self.in_bounds(x, y) {
             return None;
         }
         let cx = x as usize / self.chunk_size;
@@ -126,7 +135,7 @@ impl Grid {
     }
 
     pub fn set(&mut self, x: i32, y: i32, value: Cell) {
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+        if !self.in_bounds(x, y) {
             return;
         }
 
@@ -134,14 +143,14 @@ impl Grid {
         self[(x, y)].awake = true;
     }
     pub fn set_material(&mut self, x: i32, y: i32, material: MaterialID) {
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+        if !self.in_bounds(x, y) {
             return;
         }
         self[(x, y)].material = material;
     }
     pub fn create(&mut self, x: i32, y: i32, material: MaterialID) {
         // create is the same as set, but is used for adding materials
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+        if !self.in_bounds(x, y) {
             return;
         }
         if let Some(idx) = self.chunk_index(x, y) {
@@ -156,7 +165,7 @@ impl Grid {
     }
 
     pub fn set_stain(&mut self, x: i32, y: i32, stain: Option<Stain>) {
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+        if !self.in_bounds(x, y) {
             return;
         }
         self[(x, y)].stain = stain;
@@ -230,7 +239,7 @@ impl Grid {
     }
 
     pub fn mark_updated(&mut self, x: i32, y: i32) {
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+        if !self.in_bounds(x, y) {
             return;
         }
         let idx = y as usize * self.width + x as usize;
@@ -256,7 +265,7 @@ impl Grid {
         self.mark_updated(x2, y2);
     }
 
-    fn get_neighbors(&mut self, x: i32, y: i32) -> [(i32, i32); 4] {
+    fn get_neighbors(&self, x: i32, y: i32) -> [(i32, i32); 4] {
         let neighbors = [(0, -1), (1, 0), (0, 1), (-1, 0)];
         return neighbors.map(|c| (c.0 + x, c.1 + y));
     }
@@ -311,15 +320,12 @@ impl Grid {
         match product {
             Product::Material(mat) => {
                 let idx = y as usize * self.width + x as usize;
-                if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+                if !self.in_bounds(x, y) {
                     return false;
                 }
                 self.cells[idx].material = mat;
-                if mat != MaterialID::Empty {
-                    self.cells[idx].color = (mat.properties().color)(x, y);
-                } else {
-                    self.cells[idx].color = (mat.properties().color)(x, y)
-                }
+
+                self.cells[idx].color = (mat.properties().color)(x, y);
                 true
             }
             Product::Stain(stain) => {
@@ -369,7 +375,7 @@ impl Grid {
     }
 
     fn update_cell(&mut self, x: i32, y: i32) {
-        let idx = y as usize * self.width + x as usize;
+        let idx = self.idx(x, y);
         if self.updated[idx] {
             return;
         }
@@ -466,7 +472,7 @@ impl Grid {
         }
 
         // if we made it to here, then nothing happened this frame
-        let idx = y as usize * self.width + x as usize;
+        let idx = self.idx(x, y);
         self.cells[idx].awake = false;
     }
 

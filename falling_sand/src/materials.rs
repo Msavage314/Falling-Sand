@@ -1,6 +1,9 @@
+use std::sync::LazyLock;
+
 use crate::cell::Color;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 pub const MATERIAL_COUNT: usize = 29;
@@ -73,7 +76,8 @@ impl MaterialID {
     /// let x = MaterialID::Empty
     /// println!("{}",x.properties().density)
     /// ```
-    pub fn properties(self) -> MaterialProperties {
+    ///
+    pub fn compute_properties(self) -> MaterialProperties {
         match self {
             MaterialID::Empty => MaterialProperties {
                 behavior: Behavior::empty(),
@@ -98,8 +102,9 @@ impl MaterialID {
                     | Behavior::PERMEABLE,
                 density: 3.0,
                 color: |x, y| vary_color(Color::new(0.5, 0.5, 0.5, 1.0), 0.05, x, y),
-                lava_resistance: 1.0,
+                lava_resistance: 0.1,
                 acid_resistance: 0.7,
+                permeability: 5.0,
                 ..Default::default()
             },
             MaterialID::Water => MaterialProperties {
@@ -165,6 +170,7 @@ impl MaterialID {
                 lava_resistance: 0.4,
                 acid_resistance: 0.5,
                 wake_chance: 0.3,
+                permeability: 12.0,
                 ..Default::default()
             },
             MaterialID::Snow => MaterialProperties {
@@ -198,6 +204,7 @@ impl MaterialID {
                 burn_intensity: 1.0,
                 burn_time: 7.0,
                 acid_resistance: 0.2,
+                permeability: 20.0,
                 ..Default::default()
             },
             MaterialID::Fire => MaterialProperties {
@@ -258,6 +265,7 @@ impl MaterialID {
                 burn_intensity: 1.0,
                 burn_time: 10.0,
                 wake_chance: 0.1,
+                permeability: 2.0,
                 ..Default::default()
             },
             MaterialID::ToxicSludge => MaterialProperties {
@@ -326,9 +334,13 @@ impl MaterialID {
             },
         }
     }
+    #[inline]
+    pub fn properties(self) -> MaterialProperties {
+        MATERIAL_PROPERTIES[self as usize]
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MaterialProperties {
     pub behavior: Behavior,
     pub density: f32,
@@ -349,6 +361,8 @@ pub struct MaterialProperties {
     pub explosion_resistance: f32,
 
     pub bloom: f32,
+
+    pub permeability: f32, // 1/amount of wetness lost by transfer between material
 }
 
 impl Default for MaterialProperties {
@@ -367,9 +381,14 @@ impl Default for MaterialProperties {
             cools_to: MaterialID::Empty,
             explosion_resistance: 1.0,
             bloom: 0.0,
+            permeability: 1.0,
         }
     }
 }
+
+static MATERIAL_PROPERTIES: LazyLock<[MaterialProperties; MATERIAL_COUNT]> = LazyLock::new(|| {
+    std::array::from_fn(|i| MaterialID::iter().nth(i).unwrap().compute_properties())
+});
 
 pub fn hsv_to_color(h: f32, s: f32, v: f32) -> Color {
     let c = v * s;
