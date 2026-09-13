@@ -21,3 +21,6 @@ winit = "0.30.13"
 
 sand_render = {path="../sand_render"}
 memoize = "0.6.0"
+
+[profile.dev]
+opt-level = 3

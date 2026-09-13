@@ -10,3 +10,6 @@ egui-winit = "0.34.2"
 pixels = "0.17.2"
 winit = "0.30.13"
 bytemuck = "1.25.2"
+
+[profile.dev]
+opt-level = 3
