@@ -170,7 +170,7 @@ impl RayTracedExplosion {
 
                         grid.add_particle(x, y, 5.0 * vx, 5.0 * vy, MaterialID::Fire);
                     }
-                    if cell.material != MaterialID::Dynamite
+                    if cell.material != MaterialID::TNT
                         && cell.material != MaterialID::Fire
                         && !cell
                             .material

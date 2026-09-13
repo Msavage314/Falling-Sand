@@ -3,7 +3,7 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-pub const MATERIAL_COUNT: usize = 25;
+pub const MATERIAL_COUNT: usize = 26;
 
 bitflags! {
     #[derive(Debug,Clone,Copy,PartialEq )]
@@ -58,8 +58,9 @@ pub enum MaterialID {
     ToxicSludge,
     Gunpowder,
     Nitro,
-    Dynamite,
+    TNT,
     Methane,
+    Dynamite,
 }
 impl MaterialID {
     /// Returns a `MaterialProperties` struct of the properties associated with the materialID
@@ -281,7 +282,7 @@ impl MaterialID {
                 acid_resistance: 0.4,
                 ..Default::default()
             },
-            MaterialID::Dynamite => MaterialProperties {
+            MaterialID::TNT => MaterialProperties {
                 behavior: Behavior::STATIC | Behavior::CORRODIBLE,
                 density: 2.0,
                 color: |x, y| vary_color(Color::from_rgba(92, 24, 0, 255), 0.01, x, y),
@@ -292,6 +293,14 @@ impl MaterialID {
                 behavior: Behavior::GAS | Behavior::FLAMMABLE,
                 density: 0.1,
                 color: |_x, _y| Color::from_rgba(135, 135, 135, 255),
+                ..Default::default()
+            },
+            MaterialID::Dynamite => MaterialProperties {
+                behavior: Behavior::POWDER | Behavior::CORRODIBLE,
+                density: 2.0,
+                color: |x, y| vary_color(Color::from_rgba(133, 67, 45, 255), 0.05, x, y),
+                acid_resistance: 0.2,
+                wake_chance: 0.2,
                 ..Default::default()
             },
         }

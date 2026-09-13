@@ -539,7 +539,7 @@ pub static REACTIONS: &[Reaction] = &[
     },
     Reaction {
         a: Reactant::Behavior(Behavior::HOT),
-        b: Reactant::Material(MaterialID::Dynamite),
+        b: Reactant::Material(MaterialID::TNT),
 
         output_a: None,
         output_b: Some(ReactionOutcome {
@@ -568,6 +568,23 @@ pub static REACTIONS: &[Reaction] = &[
                 }),
                 x_offset: 0,
                 y_offset: -1,
+            },
+        }),
+        chance: 1.0,
+    },
+    Reaction {
+        a: Reactant::Behavior(Behavior::HOT),
+        b: Reactant::Material(MaterialID::Dynamite),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Explosion {
+                source: Arc::new(RayTracedExplosion {
+                    radius: 20,
+                    power: 20.0,
+                }),
+                x_offset: 0,
+                y_offset: 0,
             },
         }),
         chance: 1.0,
