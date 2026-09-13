@@ -3,7 +3,7 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-pub const MATERIAL_COUNT: usize = 26;
+pub const MATERIAL_COUNT: usize = 29;
 
 bitflags! {
     #[derive(Debug,Clone,Copy,PartialEq )]
@@ -61,6 +61,9 @@ pub enum MaterialID {
     TNT,
     Methane,
     Dynamite,
+    Experimental,
+    Spout,
+    Volcano,
 }
 impl MaterialID {
     /// Returns a `MaterialProperties` struct of the properties associated with the materialID
@@ -95,7 +98,7 @@ impl MaterialID {
                     | Behavior::PERMEABLE,
                 density: 3.0,
                 color: |x, y| vary_color(Color::new(0.5, 0.5, 0.5, 1.0), 0.05, x, y),
-                lava_resistance: 0.05,
+                lava_resistance: 1.0,
                 acid_resistance: 0.7,
                 ..Default::default()
             },
@@ -301,6 +304,24 @@ impl MaterialID {
                 color: |x, y| vary_color(Color::from_rgba(133, 67, 45, 255), 0.05, x, y),
                 acid_resistance: 0.2,
                 wake_chance: 0.2,
+                ..Default::default()
+            },
+            MaterialID::Experimental => MaterialProperties {
+                behavior: Behavior::POWDER,
+                density: 10.0,
+                color: |x, y| vary_color(Color::from_rgba(13, 255, 0, 0), 0.05, x, y),
+                wake_chance: 1.0,
+                bloom: 0.5,
+                ..Default::default()
+            },
+            MaterialID::Spout => MaterialProperties {
+                behavior: Behavior::STATIC,
+                color: |_x, _y| Color::from_rgba(106, 189, 222, 255),
+                ..Default::default()
+            },
+            MaterialID::Volcano => MaterialProperties {
+                behavior: Behavior::STATIC,
+                color: |_x, _y| Color::from_rgba(181, 109, 0, 255),
                 ..Default::default()
             },
         }

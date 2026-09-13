@@ -589,6 +589,26 @@ pub static REACTIONS: &[Reaction] = &[
         }),
         chance: 1.0,
     },
+    Reaction {
+        a: Reactant::Material(MaterialID::Spout),
+        b: Reactant::Material(MaterialID::Empty),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Material(MaterialID::Water),
+        }),
+        chance: 0.05,
+    },
+    Reaction {
+        a: Reactant::Material(MaterialID::Volcano),
+        b: Reactant::Material(MaterialID::Empty),
+
+        output_a: None,
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Material(MaterialID::Lava),
+        }),
+        chance: 0.05,
+    },
 ];
 pub static REACTIONS_BY_MATERIAL: LazyLock<[Vec<&'static Reaction>; MATERIAL_COUNT]> =
     LazyLock::new(|| {
