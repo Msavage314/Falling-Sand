@@ -1,5 +1,5 @@
 use crate::Grid;
-use crate::cell::Color;
+use crate::cell::{Cell, Color};
 use crate::materials::MaterialID;
 use egui;
 use std::collections::HashMap;
@@ -30,6 +30,7 @@ pub struct UiState {
     fps: i32,
     pub screen_width: f32,
     pub screen_height: f32,
+    pub current_cell: Option<Cell>,
 }
 impl UiState {
     pub fn new() -> Self {
@@ -45,6 +46,7 @@ impl UiState {
             fps: 0,
             screen_width: 0.0,
             screen_height: 0.0,
+            current_cell: None,
         };
     }
     /// Refresh the cached material and fps values.
@@ -168,12 +170,13 @@ impl UiState {
     }
     fn draw_current_window(&mut self, ui: &egui::Ui, grid: &Grid) {
         egui::Window::new("Current").show(ui, |ui| {
-            let (mx, my) = (0.0, 0.0);
-            let (gx, gy) = self.screen_to_grid(grid.width, grid.height, mx, my);
-            ui.label(format!("Current Material: {:?}", grid.get(gx, gy).material));
-            ui.label(format!("Current Stain: {:?}", grid.get(gx, gy).stain));
-            ui.label(format!("Current Status: {:?}", grid.get(gx, gy).awake));
-            ui.label(format!("Current Position: ({:?},{:?})", gx, gy))
+            if let Some(cell) = self.current_cell {
+                ui.label(format!("Current Material: {:?}", cell.material));
+                ui.label(format!("Current Stain: {:?}", cell.stain));
+                ui.label(format!("Current Status: {:?}", cell.awake));
+            } else {
+                ui.label("No current cell");
+            };
         });
     }
     fn _draw_chunk_debug(&mut self, grid: &mut Grid) {

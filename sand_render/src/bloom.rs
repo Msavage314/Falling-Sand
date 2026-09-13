@@ -68,6 +68,7 @@ impl BloomEffect {
         });
         let texel_x = 1.0 / width as f32;
         let texel_y = 1.0 / height as f32;
+
         let make_params_buffer = |dir_texel: [f32; 4]| {
             use pixels::wgpu::util::DeviceExt;
             device.create_buffer_init(&pixels::wgpu::util::BufferInitDescriptor {

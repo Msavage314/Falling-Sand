@@ -9,6 +9,7 @@ use crate::rng;
 use crate::stains::Stain;
 use crate::stains::StainKind;
 use core::ops::Index;
+use core::ops::IndexMut;
 use egui::vec2;
 use serde::Deserialize;
 use serde::Serialize;
@@ -129,14 +130,14 @@ impl Grid {
             return;
         }
 
-        self.cells[y as usize * self.width + x as usize] = value;
-        self.cells[y as usize * self.width + x as usize].awake = true;
+        self[(x, y)] = value;
+        self[(x, y)].awake = true;
     }
     pub fn set_material(&mut self, x: i32, y: i32, material: MaterialID) {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
-        self.cells[y as usize * self.width + x as usize].material = material;
+        self[(x, y)].material = material;
     }
     pub fn create(&mut self, x: i32, y: i32, material: MaterialID) {
         // create is the same as set, but is used for adding materials
@@ -146,7 +147,7 @@ impl Grid {
         if let Some(idx) = self.chunk_index(x, y) {
             self.chunks_need_update[idx] = true;
         }
-        self.cells[y as usize * self.width + x as usize] = Cell {
+        self[(x, y)] = Cell {
             material,
             stain: None,
             color: (material.properties().color)(x, y),
@@ -158,7 +159,7 @@ impl Grid {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
-        self.cells[y as usize * self.width + x as usize].stain = stain;
+        self[(x, y)].stain = stain;
     }
 
     fn can_density_swap(&mut self, x: i32, y: i32, x1: i32, y1: i32, falling: bool) -> bool {
@@ -574,5 +575,10 @@ impl Index<(i32, i32)> for Grid {
     type Output = Cell;
     fn index(&self, (x, y): (i32, i32)) -> &Self::Output {
         return &self.cells[y as usize * self.width + x as usize];
+    }
+}
+impl IndexMut<(i32, i32)> for Grid {
+    fn index_mut(&mut self, (x, y): (i32, i32)) -> &mut Self::Output {
+        return &mut self.cells[y as usize * self.width + x as usize];
     }
 }

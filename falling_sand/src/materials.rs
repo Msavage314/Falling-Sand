@@ -88,7 +88,10 @@ impl MaterialID {
                 ..Default::default()
             },
             MaterialID::Stone => MaterialProperties {
-                behavior: Behavior::STATIC | Behavior::MELTABLE | Behavior::CORRODIBLE,
+                behavior: Behavior::STATIC
+                    | Behavior::MELTABLE
+                    | Behavior::CORRODIBLE
+                    | Behavior::PERMEABLE,
                 density: 3.0,
                 color: |x, y| vary_color(Color::new(0.5, 0.5, 0.5, 1.0), 0.05, x, y),
                 lava_resistance: 0.05,

@@ -86,6 +86,24 @@ pub static REACTIONS: &[Reaction] = &[
         chance: 0.1,
     },
     Reaction {
+        a: Reactant::Stain(StainKind::Wet),
+        b: Reactant::Material(MaterialID::Lava),
+
+        output_a: Some(ReactionOutcome {
+            apply_fn: |_a, _b| {
+                Product::Stain(Stain {
+                    kind: StainKind::Wet,
+                    intensity: 0.0,
+                    timer: 0.0,
+                })
+            },
+        }),
+        output_b: Some(ReactionOutcome {
+            apply_fn: |_a, _b| Product::Material(MaterialID::Stone),
+        }),
+        chance: 0.1,
+    },
+    Reaction {
         a: Reactant::Behavior(Behavior::HOT),
         b: Reactant::Material(MaterialID::Water),
 
@@ -110,10 +128,10 @@ pub static REACTIONS: &[Reaction] = &[
 
         output_a: Some(ReactionOutcome {
             apply_fn: |_a, _b| {
-                if rng::chance(0.5) {
+                if rng::chance(0.005) {
                     Product::Material(MaterialID::Water)
                 } else {
-                    Product::NoChange
+                    Product::Material(MaterialID::Empty)
                 }
             },
         }),
@@ -121,7 +139,7 @@ pub static REACTIONS: &[Reaction] = &[
             apply_fn: |_a, _b| Product::NoChange,
         }),
 
-        chance: 0.01,
+        chance: 0.1,
     },
     Reaction {
         a: Reactant::Behavior(Behavior::MELTABLE),

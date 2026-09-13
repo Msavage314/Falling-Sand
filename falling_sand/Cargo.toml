@@ -20,3 +20,4 @@ strum_macros = "0.28.0"
 winit = "0.30.13"
 
 sand_render = {path="../sand_render"}
+memoize = "0.6.0"
